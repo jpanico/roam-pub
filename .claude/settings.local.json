@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/opt/local/bin/gh auth status)",
+      "Bash(/opt/local/bin/gh auth login:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Python .gitignore\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(/opt/local/bin/gh auth:*)",
+      "Bash(git status:*)",
+      "Bash(git check-ignore:*)"
+    ]
+  }
+}

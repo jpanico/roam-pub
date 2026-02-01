@@ -61,7 +61,6 @@ venv.bak/
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
 *~
@@ -83,3 +82,6 @@ dmypy.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Override global ignore for Claude Code settings
+!.claude/settings.local.json
