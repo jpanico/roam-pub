@@ -22,7 +22,13 @@
       "WebFetch(domain:pipedream.com)",
       "WebFetch(domain:gist.github.com)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(source:*)",
+      "Bash(pytest:*)",
+      "Bash(pip install:*)",
+      "Bash(mypy:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(black:*)"
     ]
   }
 }

@@ -1,3 +1,5 @@
+import base64
+import json
 import requests
 
 api_endpoint: str = f"http://127.0.0.1:3333/api/SCFH"
@@ -26,11 +28,21 @@ if __name__ == "__main__":
     
     try:
         # The Local API expects a POST request with the file URL
-        response: requests.Response = requests.post(api_endpoint, json=file_get_payload, headers=headers, stream=False)
+        response: requests.Response = requests.post(api_endpoint, json=file_get_payload, headers=headers, stream=True)
         
         if response.status_code == 200:
             print(f"Success!")
             print(f"response:{response.text}")
+            response_payload: dict = json.loads(response.text)
+            result: dict = response_payload["result"]
+            decoded_bytes:bytes = base64.b64decode(result["base64"])
+            file_name: str = result["filename"]
+            mime_type: str = result["mimetype"]
+            print(f"file_name:{file_name}, mime_type:{mime_type}, decoded_bytes:{decoded_bytes}")
+            # 'wb' stands for Write Binary
+            with open(file_name, 'wb') as file:
+                file.write(decoded_bytes)
+
         else:
             print(f"Error: Failed to execute action. Status Code: {response.status_code}")
             print(f"Response: {response.text}")
