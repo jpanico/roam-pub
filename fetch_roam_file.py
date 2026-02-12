@@ -1,15 +1,24 @@
+from datetime import datetime
 from string import Template
 from typing import ClassVar, Final
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 import requests
 import json
 import base64
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ApiEndpointURL(BaseModel):
     """
-    Pydantic ensures that `local_api_port` and `graph_name` are required and non-null by default
+    Immutable API endpoint URL for Roam Research Local API.
+
+    Pydantic ensures that `local_api_port` and `graph_name` are required and non-null by default.
+    Once created, instances cannot be modified (frozen).
     """
+
+    model_config = ConfigDict(frozen=True)
 
     local_api_port: int
     graph_name: str
@@ -22,133 +31,97 @@ class ApiEndpointURL(BaseModel):
         return f"{self.SCHEME}://{self.HOST}:{self.local_api_port}{self.API_PATH_STEM}{self.graph_name}"
 
 
-class FetchRoamFile:
-    HEADERS: Final[str] = """
-    {
-        "Content-Type": "application/json"
-    }
+class RoamFile(BaseModel):
     """
-    PAYLOAD_TEMPLATE: Final[str] = """
+    Immutable representation of a file fetched from Roam Research.
+
+    Once created, instances cannot be modified (frozen). All fields are required
+    and validated at construction time.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    file_name: str = Field(..., min_length=1, description="Name of the file")
+    last_modified: datetime = Field(..., description="Last modification timestamp")
+    media_type: str = Field(..., pattern=r"^[\w-]+/[\w-]+$", description="MIME type (e.g., 'image/jpeg')")
+    contents: bytes = Field(..., description="Binary file contents")
+
+
+class FetchRoamFile:
+    REQUEST_HEADERS: Final[dict] = {"Content-Type": "application/json"}
+    REQUEST_PAYLOAD_TEMPLATE: Final[Template] = Template("""
     {
        "action": "file.get",
         "args": [
             {
-                "url" : "{file_url}",
+                "url" : "$file_url",
                 "format": "base64"
             }
         ]
     }
-    """
+    """)
 
     @staticmethod
-    def fetch(api_endpoint: ApiEndpointURL, file_url: str) -> str:
+    def roam_file_from_response_text(response_text: str) -> RoamFile:
+        logger.debug(f"response_text: {response_text}")
+        if response_text is None:
+            raise TypeError("response_text cannot be None")
+
+        response_payload: dict = json.loads(response_text)
+        payload_result: dict = response_payload["result"]
+        file_bytes: bytes = base64.b64decode(payload_result["base64"])
+        file_name: str = payload_result["filename"]
+        media_type: str = payload_result["mimetype"]
+
+        logger.info(f"Successfully fetched file: {file_name}")
+
+        # Return RoamFile object
+        return RoamFile(
+            file_name=file_name,
+            last_modified=datetime.now(),
+            media_type=media_type,
+            contents=file_bytes,
+        )
+
+    @staticmethod
+    def fetch(api_endpoint: ApiEndpointURL, firebase_url: HttpUrl) -> RoamFile:
         """
-        Fetch a file from Roam Research API.
+        Fetch a file from Roam Research **Local** API. Because this goes through the Local API, the Roam Research
+        native App must be running at the time this method is called
 
         Args:
             api_endpoint: The API endpoint URL (validated by Pydantic)
-            file_url: The file URL to fetch (required, non-empty)
+            firebase_url: The Firebase URL that appears in Roam Markdown
 
         Returns:
-            The local filename where the file was saved
+            RoamFile object containing the fetched file data
 
         Raises:
-            ValueError: If file_url is None or empty
+            TypeError: If api_endpoint or file_url is None
             requests.exceptions.ConnectionError: If unable to connect to API
             requests.exceptions.HTTPError: If API returns error status
         """
-        # Validate file_url is not None or empty
-        if not file_url or not file_url.strip():
-            raise ValueError("file_url cannot be None or empty")
 
-        headers: dict = {"Content-Type": "application/json"}
+        logger.debug(f"api_endpoint: {api_endpoint}, firebase_url: {firebase_url}")
+        if api_endpoint is None:
+            raise TypeError("api_endpoint cannot be None")
+        if firebase_url is None:
+            raise TypeError("file_url cannot be None")
 
-        payload: dict = {
-            "action": "file.get",
-            "args": [{"url": file_url, "format": "base64"}],
-        }
-
-        print(f"Requesting file from: {api_endpoint}")
+        request_payload_str: str = FetchRoamFile.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
+        request_payload: dict = json.loads(request_payload_str)
+        logger.info(
+            f"request_payload: {request_payload}, headers: {FetchRoamFile.REQUEST_HEADERS}, api: {api_endpoint}"
+        )
 
         # The Local API expects a POST request with the file URL
         response: requests.Response = requests.post(
-            str(api_endpoint), json=payload, headers=headers, stream=False
+            str(api_endpoint), json=request_payload, headers=FetchRoamFile.REQUEST_HEADERS, stream=False
         )
 
         if response.status_code == 200:
-            response_payload: dict = json.loads(response.text)
-            payload_result: dict = response_payload["result"]
-            file_bytes: bytes = base64.b64decode(payload_result["base64"])
-            file_name: str = payload_result["filename"]
-
-            # Write binary data to file
-            with open(file_name, "wb") as file:
-                file.write(file_bytes)
-
-            print(f"Success! File saved to: {file_name}")
-            return file_name
+            return FetchRoamFile.roam_file_from_response_text(response.text)
         else:
-            error_msg: str = (
-                f"Failed to fetch file. Status Code: {response.status_code}, Response: {response.text}"
-            )
+            error_msg: str = f"Failed to fetch file. Status Code: {response.status_code}, Response: {response.text}"
+            logger.error(error_msg)
             raise requests.exceptions.HTTPError(error_msg)
-
-
-def fetch_roam_file(local_api_port, graph_name, file_url):
-    """
-    Fetches a file from Roam Research via the Local API (handles decryption).
-
-    Args:
-        local_api_port (int): The port shown in Roam Desktop > Settings > Local API.
-        graph_name (str): The name of your Roam graph.
-        file_url (str): The Firebase storage URL (e.g., https://firebasestorage...).
-    """
-
-    # The Local API endpoint for file fetching
-    api_endpoint: str = f"http://127.0.0.1:{local_api_port}/api/{graph_name}"
-
-    headers: dict = {"Content-Type": "application/json"}
-
-    payload: dict = {
-        "action": "file.get",
-        "args": [{"url": file_url, "format": "base64"}],
-    }
-
-    print(f"Requesting file from: {api_endpoint}")
-
-    try:
-        # The Local API expects a POST request with the file URL
-        response: requests.Response = requests.post(
-            api_endpoint, json=payload, headers=headers, stream=False
-        )
-
-        if response.status_code == 200:
-            response_payload: dict = json.loads(response.text)
-            payload_result: dict = response_payload["result"]
-            file_bytes: bytes = base64.b64decode(payload_result["base64"])
-            file_name: str = payload_result["filename"]
-            # 'wb' stands for Write Binary
-            with open(file_name, "wb") as file:
-                file.write(file_bytes)
-
-            print(f"Success! File saved to: {file_name}")
-        else:
-            print(f"Error: Failed to fetch file. Status Code: {response.status_code}")
-            print(f"Response: {response.text}")
-
-    except requests.exceptions.ConnectionError:
-        print(
-            "Error: Could not connect to Roam Local API. Is the Roam Desktop App running and Local API enabled?"
-        )
-
-
-# --- Configuration ---
-# 1. Open Roam Desktop -> Settings -> Graph -> Local API to find your PORT.
-PORT = 3333  # Replace with your actual port
-GRAPH = "SCFH"
-# 2. The URL usually found in a block like ![](https://firebasestorage...)
-FILE_URL = "https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94"
-
-# --- Execute ---
-if __name__ == "__main__":
-    fetch_roam_file(PORT, GRAPH, FILE_URL)

@@ -1,5 +1,5 @@
 [tool.black]
-line-length = 88
+line-length = 120
 target-version = ['py314']
 include = '\.pyi?$'
 exclude = '''
@@ -18,3 +18,7 @@ testpaths = ["."]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+log_cli = true
+log_cli_level = "DEBUG"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"

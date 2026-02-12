@@ -57,7 +57,7 @@ def convert_roam_markdown(input_path: Path) -> str:
 
         # Match root-level bullets (no leading whitespace)
         # Roam uses "- " for bullets
-        match: Match[str] | None = re.match(r'^- (.+)$', line)
+        match: Match[str] | None = re.match(r"^- (.+)$", line)
         if match:
             # Convert to H2
             output_lines.append(f"## {match.group(1)}")
@@ -134,15 +134,11 @@ def markdown_to_pdf(markdown_content: str, output_path: Path) -> None:
 """
 
     # Write markdown and header to temp files for pandoc
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".md", delete=False
-    ) as tmp_input:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tmp_input:
         tmp_input.write(markdown_content)
         tmp_input_path: str = tmp_input.name
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".tex", delete=False
-    ) as tmp_header:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".tex", delete=False) as tmp_header:
         tmp_header.write(latex_header)
         tmp_header_path: str = tmp_header.name
 
@@ -151,13 +147,13 @@ def markdown_to_pdf(markdown_content: str, output_path: Path) -> None:
         cmd: list[str] = [
             "pandoc",
             tmp_input_path,
-            "-o", str(output_path),
+            "-o",
+            str(output_path),
             f"--pdf-engine={available_engine}",
-            f"-H", tmp_header_path,
+            f"-H",
+            tmp_header_path,
         ]
-        result: subprocess.CompletedProcess[str] = subprocess.run(
-            cmd, capture_output=True, text=True
-        )
+        result: subprocess.CompletedProcess[str] = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(f"pandoc failed: {result.stderr}")
     finally:
@@ -170,17 +166,14 @@ def main() -> int:
         description="Convert Roam Research Markdown to standard Markdown or PDF"
     )
     parser.add_argument("input_file", type=Path, help="Path to input Markdown file")
+    parser.add_argument("-o", "--output", type=Path, help="Output file path (default: input_converted.md or .pdf)")
     parser.add_argument(
-        "-o", "--output",
-        type=Path,
-        help="Output file path (default: input_converted.md or .pdf)"
-    )
-    parser.add_argument(
-        "-f", "--format",
+        "-f",
+        "--format",
         type=str,
         choices=["md", "pdf"],
         default="md",
-        help="Output format: md (Markdown) or pdf (default: md)"
+        help="Output format: md (Markdown) or pdf (default: md)",
     )
     args: argparse.Namespace = parser.parse_args()
 
