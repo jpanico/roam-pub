@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.scripts]
-convert-roam-images = "mdplay.convert_roam_images:main"
+bundle-roam-md = "mdplay.bundle_roam_md:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

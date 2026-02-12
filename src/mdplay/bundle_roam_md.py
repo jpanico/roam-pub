@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Script to convert Roam Research Markdown files by fetching Firebase-hosted images
+Script to bundle Roam Research Markdown files by fetching Firebase-hosted images
 and replacing them with local file references.
 
 Usage:
-    python convert_roam_images.py <markdown_file> <local_api_port> <graph_name>
+    python bundle_roam_md.py <markdown_file> <local_api_port> <graph_name>
 
 Example:
-    python convert_roam_images.py my_notes.md 3333 SCFH
+    python bundle_roam_md.py my_notes.md 3333 SCFH
 """
 
 import re

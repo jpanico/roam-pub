@@ -29,7 +29,9 @@
       "Bash(mypy:*)",
       "Bash(pip uninstall:*)",
       "Bash(black:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(autoflake:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }

@@ -4,9 +4,7 @@ import pytest
 import json
 import base64
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
-from unittest.mock import Mock, MagicMock, patch, mock_open
-import requests
+from typing import List, Tuple
 
 from mdplay.fetch_roam_file import ApiEndpointURL, RoamFile, FetchRoamFile
 
@@ -293,7 +291,7 @@ class TestFetchRoamFileFetch:
         logger.info(f"roam_file: {roam_file}")
 
         # Read the expected JPEG file
-        with open("./flower.jpeg", "rb") as f:
+        with open("tests/fixtures/images/flower.jpeg", "rb") as f:
             expected_contents: bytes = f.read()
 
         # Assert the fetched file matches the expected file
