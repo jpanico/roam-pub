@@ -33,7 +33,9 @@ class ApiEndpointURL(BaseModel):
 
 class RoamAsset(BaseModel):
     """
-    Immutable representation of a file fetched from Roam Research.
+    Roam uploads all user assets (files, media) to Firebase, and stores only Firebase locators (URLS) within the Roam graph DB
+    itself (nodes). This class is an immutable representation of an asset that is fetched from Firebase *through*
+    the Roam api. 
 
     Once created, instances cannot be modified (frozen). All fields are required
     and validated at construction time.
@@ -86,7 +88,7 @@ class FetchRoamAsset:
     @staticmethod
     def fetch(api_endpoint: ApiEndpointURL, firebase_url: HttpUrl) -> RoamAsset:
         """
-        Fetch a file from Roam Research **Local** API. Because this goes through the Local API, the Roam Research
+        Fetch an asset (file) from Roam Research **Local** API. Because this goes through the Local API, the Roam Research
         native App must be running at the time this method is called, and the user must be logged into the graph having 
         `graph_name`
 

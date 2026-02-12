@@ -5,11 +5,12 @@ from typing import List, Tuple
 from unittest.mock import Mock, patch, mock_open
 from pydantic import HttpUrl
 
-from mdplay.roam_md import (
+from mdplay.roam_md_bundle import (
     find_markdown_image_links,
     fetch_and_save_image,
     replace_image_links,
-    process_markdown_file,
+    normalize_link_text,
+    bundle_md_file,
 )
 from mdplay.roam_asset import ApiEndpointURL, RoamAsset, FetchRoamAsset
 from datetime import datetime
@@ -104,7 +105,7 @@ class TestFindMarkdownImageLinks:
 class TestFetchAndSaveImage:
     """Tests for the fetch_and_save_image function."""
 
-    @patch('mdplay.roam_md.FetchRoamAsset.fetch')
+    @patch('mdplay.roam_md_bundle.FetchRoamAsset.fetch')
     @patch('builtins.open', new_callable=mock_open)
     def test_fetches_and_saves_image_successfully(self, mock_file: Mock, mock_fetch: Mock) -> None:
         """Test successful image fetch and save."""
@@ -131,7 +132,7 @@ class TestFetchAndSaveImage:
         mock_fetch.assert_called_once()
         mock_file.assert_called_once_with(output_dir / "test_image.png", "wb")
 
-    @patch('mdplay.roam_md.FetchRoamAsset.fetch')
+    @patch('mdplay.roam_md_bundle.FetchRoamAsset.fetch')
     def test_fetch_failure_raises_exception(self, mock_fetch: Mock) -> None:
         """Test that fetch failure raises an exception."""
         api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
@@ -199,38 +200,96 @@ class TestReplaceImageLinks:
         assert "local.png" in result
 
 
-class TestProcessMarkdownFile:
-    """Tests for the process_markdown_file function."""
+class TestNormalizeLinkText:
+    """Tests for the normalize_link_text function."""
 
-    def test_file_not_found_raises_exception(self) -> None:
+    def test_normalizes_multiline_image_link_text(self) -> None:
+        """Test that multi-line image link text is normalized to single line."""
+        markdown_text: str = "![A\nflower](image.png)"
+        result: str = normalize_link_text(markdown_text)
+        assert result == "![A flower](image.png)"
+
+    def test_normalizes_multiline_regular_link_text(self) -> None:
+        """Test that multi-line regular link text is normalized to single line."""
+        markdown_text: str = "[Click\nhere](https://example.com)"
+        result: str = normalize_link_text(markdown_text)
+        assert result == "[Click here](https://example.com)"
+
+    def test_handles_multiple_newlines_in_link_text(self) -> None:
+        """Test that multiple consecutive newlines are replaced with single space."""
+        markdown_text: str = "![Alt\n\n\ntext](image.png)"
+        result: str = normalize_link_text(markdown_text)
+        assert result == "![Alt text](image.png)"
+
+    def test_normalizes_multiple_links_in_text(self) -> None:
+        """Test that multiple links in the same text are all normalized."""
+        markdown_text: str = "![First\nimage](img1.png) and [Second\nlink](url.com)"
+        result: str = normalize_link_text(markdown_text)
+        assert result == "![First image](img1.png) and [Second link](url.com)"
+
+    def test_preserves_single_line_links(self) -> None:
+        """Test that links without line breaks are unchanged."""
+        markdown_text: str = "![Single line](image.png) and [normal link](url.com)"
+        result: str = normalize_link_text(markdown_text)
+        assert result == "![Single line](image.png) and [normal link](url.com)"
+
+    def test_preserves_non_link_content(self) -> None:
+        """Test that text outside of links is not modified."""
+        markdown_text: str = """# Heading
+Some paragraph text
+![Image\nwith breaks](img.png)
+More text"""
+        result: str = normalize_link_text(markdown_text)
+        assert "# Heading" in result
+        assert "Some paragraph text" in result
+        assert "More text" in result
+        assert "![Image with breaks](img.png)" in result
+
+
+class TestBundleMdFile:
+    """Tests for the bundle_md_file function."""
+
+    def test_file_not_found_raises_exception(self, tmp_path: Path) -> None:
         """Test that non-existent file raises FileNotFoundError."""
-        markdown_file: Path = Path("/nonexistent/file.md")
+        markdown_file: Path = tmp_path / "nonexistent_file.md"
 
         with pytest.raises(FileNotFoundError, match="Markdown file not found"):
-            process_markdown_file(markdown_file, 3333, "test-graph")
+            bundle_md_file(markdown_file, 3333, "test-graph", tmp_path)
 
-    @patch('mdplay.roam_md.find_markdown_image_links')
+    @patch('mdplay.roam_md_bundle.find_markdown_image_links')
     def test_no_firebase_links_exits_early(self, mock_find: Mock, tmp_path: Path) -> None:
         """Test that function exits early when no Firebase links found."""
-        # Create a temporary markdown file
-        markdown_file: Path = tmp_path / "test.md"
+        # Create separate input and output directories
+        input_dir: Path = tmp_path / "input"
+        output_dir: Path = tmp_path / "output"
+        input_dir.mkdir()
+        output_dir.mkdir()
+
+        # Create a temporary markdown file in input directory
+        markdown_file: Path = input_dir / "test.md"
         markdown_file.write_text("# Test\n\nNo images here.")
 
         mock_find.return_value = []
 
         # Should not raise exception
-        process_markdown_file(markdown_file, 3333, "test-graph")
+        bundle_md_file(markdown_file, 3333, "test-graph", output_dir)
 
-        # Verify no output file was created
-        output_file: Path = tmp_path / "test_converted.md"
+        # Verify no output file was created since no Firebase links were found
+        output_file: Path = output_dir / "test.md"
         assert not output_file.exists()
 
-    @patch('mdplay.roam_md.fetch_and_save_image')
-    @patch('mdplay.roam_md.find_markdown_image_links')
+    @patch('mdplay.roam_md_bundle.fetch_and_save_image')
+    @patch('mdplay.roam_md_bundle.find_markdown_image_links')
     def test_processes_file_successfully(self, mock_find: Mock, mock_fetch: Mock, tmp_path: Path) -> None:
         """Test successful file processing."""
-        # Create a temporary markdown file
-        markdown_file: Path = tmp_path / "test.md"
+        # Create separate input and output directories
+        input_dir: Path = tmp_path / "input"
+        output_dir: Path = tmp_path / "output"
+        input_dir.mkdir()
+        output_dir.mkdir()
+
+        # Create a temporary markdown file in input directory
+        markdown_file: Path = input_dir / "test.md"
         markdown_content: str = "![image](https://firebasestorage.googleapis.com/o/img.png)"
         markdown_file.write_text(markdown_content)
 
@@ -244,10 +303,10 @@ class TestProcessMarkdownFile:
         mock_fetch.return_value = ("https://firebasestorage.googleapis.com/o/img.png", "local_image.png")
 
         # Execute
-        process_markdown_file(markdown_file, 3333, "test-graph")
+        bundle_md_file(markdown_file, 3333, "test-graph", output_dir)
 
         # Verify output file was created
-        output_file: Path = tmp_path / "test_converted.md"
+        output_file: Path = output_dir / "test.md"
         assert output_file.exists()
 
         # Verify content was updated
@@ -255,12 +314,18 @@ class TestProcessMarkdownFile:
         assert "local_image.png" in output_content
         assert "firebasestorage.googleapis.com" not in output_content
 
-    @patch('mdplay.roam_md.fetch_and_save_image')
-    @patch('mdplay.roam_md.find_markdown_image_links')
+    @patch('mdplay.roam_md_bundle.fetch_and_save_image')
+    @patch('mdplay.roam_md_bundle.find_markdown_image_links')
     def test_continues_on_fetch_error(self, mock_find: Mock, mock_fetch: Mock, tmp_path: Path) -> None:
         """Test that processing continues when one image fetch fails."""
-        # Create a temporary markdown file
-        markdown_file: Path = tmp_path / "test.md"
+        # Create separate input and output directories
+        input_dir: Path = tmp_path / "input"
+        output_dir: Path = tmp_path / "output"
+        input_dir.mkdir()
+        output_dir.mkdir()
+
+        # Create a temporary markdown file in input directory
+        markdown_file: Path = input_dir / "test.md"
         markdown_content: str = """
         ![image1](https://firebasestorage.googleapis.com/o/img1.png)
         ![image2](https://firebasestorage.googleapis.com/o/img2.png)
@@ -282,10 +347,10 @@ class TestProcessMarkdownFile:
         ]
 
         # Execute - should not raise exception
-        process_markdown_file(markdown_file, 3333, "test-graph")
+        bundle_md_file(markdown_file, 3333, "test-graph", output_dir)
 
         # Verify output file was still created
-        output_file: Path = tmp_path / "test_converted.md"
+        output_file: Path = output_dir / "test.md"
         assert output_file.exists()
 
         # Verify second image was replaced

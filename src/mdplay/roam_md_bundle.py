@@ -94,14 +94,74 @@ def replace_image_links(markdown_text: str, url_replacements: List[Tuple[HttpUrl
     return updated_text
 
 
-def process_markdown_file(markdown_file: Path, local_api_port: int, graph_name: str) -> None:
+def normalize_link_text(markdown_text: str) -> str:
     """
-    Process a Markdown file: fetch images and update links.
+    Remove line breaks from link text in Markdown links.
+
+    Markdown links should not have multi-line link text. This function finds all
+    Markdown links (both images and regular links) and removes any line breaks
+    within the link text portion, replacing them with spaces.
+
+    Args:
+        markdown_text: The Markdown content to normalize
+
+    Returns:
+        Markdown text with single-line link text
+    """
+    # Pattern to match both image links ![text](url) and regular links [text](url)
+    # Captures: optional '!', link text (which may contain newlines), and url
+    pattern = r"(!?\[)((?:[^\]]|\n)+?)(\]\([^\)]+\))"
+
+    def replace_newlines(match: re.Match) -> str:
+        prefix: str = match.group(1)  # '![' or '['
+        link_text: str = match.group(2)  # The link text (may have newlines)
+        suffix: str = match.group(3)  # '](url)'
+
+        # Replace newlines in link text with spaces
+        normalized_text: str = re.sub(r"\n+", " ", link_text)
+
+        return f"{prefix}{normalized_text}{suffix}"
+
+    return re.sub(pattern, replace_newlines, markdown_text)
+
+
+def fetch_all_images(
+    image_links: List[Tuple[str, HttpUrl]], api_endpoint: ApiEndpointURL, output_dir: Path
+) -> List[Tuple[HttpUrl, str]]:
+    """
+    Fetch and save all images from the provided list of image links.
+
+    Args:
+        image_links: List of (full_match, firebase_url) tuples
+        api_endpoint: The Roam Local API endpoint
+        output_dir: Directory where images should be saved
+
+    Returns:
+        List of (firebase_url, local_filename) tuples for successfully fetched images
+    """
+    url_replacements: List[Tuple[HttpUrl, str]] = []
+    for full_match, firebase_url in image_links:
+        try:
+            firebase_url_result, local_filename = fetch_and_save_image(api_endpoint, firebase_url, output_dir)
+            url_replacements.append((firebase_url_result, local_filename))
+        except Exception as e:
+            logger.error(f"Failed to fetch {firebase_url}: {e}")
+            # Continue with other images
+
+    return url_replacements
+
+
+def bundle_md_file(
+    markdown_file: Path, local_api_port: int, graph_name: str, output_dir: Path
+) -> None:
+    """
+    Bundle a Markdown file: fetch images and update links.
 
     Args:
         markdown_file: Path to the Markdown file
         local_api_port: Port for Roam Local API
         graph_name: Name of the Roam graph
+        output_dir: Directory where bundle (translated md file and local images) should be saved
 
     Raises:
         FileNotFoundError: If markdown file doesn't exist
@@ -125,25 +185,18 @@ def process_markdown_file(markdown_file: Path, local_api_port: int, graph_name: 
     # Create API endpoint
     api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=local_api_port, graph_name=graph_name)
 
-    # Output directory (same as the Markdown file)
-    output_dir: Path = markdown_file.parent
-
-    # Fetch and save each image
-    url_replacements: List[Tuple[HttpUrl, str]] = []
-    for full_match, firebase_url in image_links:
-        try:
-            firebase_url_result, local_filename = fetch_and_save_image(api_endpoint, firebase_url, output_dir)
-            url_replacements.append((firebase_url_result, local_filename))
-        except Exception as e:
-            logger.error(f"Failed to fetch {firebase_url}: {e}")
-            # Continue with other images
+    # Fetch and save all images
+    url_replacements: List[Tuple[HttpUrl, str]] = fetch_all_images(image_links, api_endpoint, output_dir)
 
     # Replace URLs in the Markdown text
     if url_replacements:
         updated_text: str = replace_image_links(markdown_text, url_replacements)
 
+        # Normalize link text to remove line breaks
+        updated_text = normalize_link_text(updated_text)
+
         # Write the updated Markdown file
-        output_file: Path = markdown_file.parent / f"{markdown_file.stem}_converted.md"
+        output_file: Path = output_dir / markdown_file.name
         output_file.write_text(updated_text, encoding="utf-8")
         logger.info(f"Wrote updated Markdown to: {output_file}")
         logger.info(f"Successfully processed {len(url_replacements)} images")
