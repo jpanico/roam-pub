@@ -3,7 +3,7 @@ import pytest
 from pathlib import Path
 from typing import List, Tuple
 from unittest.mock import Mock, patch, mock_open
-from pydantic import HttpUrl
+from pydantic import HttpUrl, ValidationError
 
 from roam_pub.roam_md_bundle import (
     find_markdown_image_links,
@@ -66,6 +66,11 @@ class TestFindMarkdownImageLinks:
         assert len(matches) == 1
         assert "firebasestorage.googleapis.com" in str(matches[0][1])
         assert isinstance(matches[0][1], HttpUrl)
+
+    def test_none_markdown_raises_validation_error(self) -> None:
+        """Test that None markdown_text raises ValidationError."""
+        with pytest.raises(ValidationError):
+            find_markdown_image_links(None)  # type: ignore[arg-type]
 
     def test_empty_markdown_returns_empty_list(self) -> None:
         """Test that empty markdown returns empty list."""
@@ -131,7 +136,7 @@ class TestFetchAndSaveImage:
         mock_fetch.return_value = mock_roam_asset
 
         # Execute
-        result_url, result_filename = fetch_and_save_image(api_endpoint, firebase_url, output_dir)
+        result_url, result_filename = fetch_and_save_image(api_endpoint, "test-token", firebase_url, output_dir)
 
         # Verify
         assert result_url == firebase_url
@@ -152,7 +157,46 @@ class TestFetchAndSaveImage:
         mock_fetch.side_effect = Exception("Network error")
 
         with pytest.raises(Exception, match="Network error"):
-            fetch_and_save_image(api_endpoint, firebase_url, output_dir)
+            fetch_and_save_image(api_endpoint, "test-token", firebase_url, output_dir)
+
+    def test_none_api_endpoint_raises_validation_error(self) -> None:
+        """Test that None api_endpoint raises ValidationError."""
+        firebase_url: HttpUrl = HttpUrl(
+            "https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc"
+        )
+        output_dir: Path = Path("/tmp/test")
+
+        with pytest.raises(ValidationError):
+            fetch_and_save_image(None, "test-token", firebase_url, output_dir)  # type: ignore[arg-type]
+
+    def test_none_api_bearer_token_raises_validation_error(self) -> None:
+        """Test that None api_bearer_token raises ValidationError."""
+        api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
+        firebase_url: HttpUrl = HttpUrl(
+            "https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc"
+        )
+        output_dir: Path = Path("/tmp/test")
+
+        with pytest.raises(ValidationError):
+            fetch_and_save_image(api_endpoint, None, firebase_url, output_dir)  # type: ignore[arg-type]
+
+    def test_none_firebase_url_raises_validation_error(self) -> None:
+        """Test that None firebase_url raises ValidationError."""
+        api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
+        output_dir: Path = Path("/tmp/test")
+
+        with pytest.raises(ValidationError):
+            fetch_and_save_image(api_endpoint, "test-token", None, output_dir)  # type: ignore[arg-type]
+
+    def test_none_output_dir_raises_validation_error(self) -> None:
+        """Test that None output_dir raises ValidationError."""
+        api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
+        firebase_url: HttpUrl = HttpUrl(
+            "https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc"
+        )
+
+        with pytest.raises(ValidationError):
+            fetch_and_save_image(api_endpoint, "test-token", firebase_url, None)  # type: ignore[arg-type]
 
 
 class TestReplaceImageLinks:
@@ -196,6 +240,16 @@ class TestReplaceImageLinks:
 
         assert result == markdown_text
 
+    def test_none_markdown_text_returns_none(self) -> None:
+        """Test that None markdown_text returns None."""
+        url_replacements: List[Tuple[HttpUrl, str]] = [
+            (HttpUrl("https://firebasestorage.googleapis.com/o/img.png"), "local_image.png")
+        ]
+
+        result = replace_image_links(None, url_replacements)  # type: ignore[arg-type]
+
+        assert result is None
+
     def test_preserves_markdown_structure(self) -> None:
         """Test that markdown structure is preserved."""
         markdown_text: str = "# Heading\n\n![image](https://firebasestorage.googleapis.com/o/img.png)\n\nSome text"
@@ -208,6 +262,21 @@ class TestReplaceImageLinks:
         assert "# Heading" in result
         assert "Some text" in result
         assert "local.png" in result
+
+    def test_invalid_url_replacements_raises_validation_error(self) -> None:
+        """Test that invalid url_replacements raises ValidationError."""
+        markdown_text: str = "![image](https://firebasestorage.googleapis.com/o/img.png)"
+
+        # Pass invalid url_replacements (not a list of tuples)
+        with pytest.raises(ValidationError):
+            replace_image_links(markdown_text, "invalid")  # type: ignore[arg-type]
+
+    def test_none_url_replacements_raises_validation_error(self) -> None:
+        """Test that None url_replacements raises ValidationError."""
+        markdown_text: str = "![image](https://firebasestorage.googleapis.com/o/img.png)"
+
+        with pytest.raises(ValidationError):
+            replace_image_links(markdown_text, None)  # type: ignore[arg-type]
 
 
 class TestNormalizeLinkText:
@@ -304,7 +373,7 @@ class TestBundleMdFile:
         markdown_file: Path = tmp_path / "nonexistent_file.md"
 
         with pytest.raises(FileNotFoundError, match="Markdown file not found"):
-            bundle_md_file(markdown_file, 3333, "test-graph", tmp_path)
+            bundle_md_file(markdown_file, 3333, "test-graph", "test-token", tmp_path)
 
     @patch("roam_pub.roam_md_bundle.find_markdown_image_links")
     def test_no_firebase_links_exits_early(self, mock_find: Mock, tmp_path: Path) -> None:
@@ -322,7 +391,7 @@ class TestBundleMdFile:
         mock_find.return_value = []
 
         # Should not raise exception
-        bundle_md_file(markdown_file, 3333, "test-graph", output_dir)
+        bundle_md_file(markdown_file, 3333, "test-graph", "test-token", output_dir)
 
         # Verify no output file was created since no Firebase links were found
         output_file: Path = output_dir / "test.md"
@@ -355,7 +424,7 @@ class TestBundleMdFile:
         mock_fetch.return_value = ("https://firebasestorage.googleapis.com/o/img.png", "local_image.png")
 
         # Execute
-        bundle_md_file(markdown_file, 3333, "test-graph", output_dir)
+        bundle_md_file(markdown_file, 3333, "test-graph", "test-token", output_dir)
 
         # Verify output file was created
         output_file: Path = output_dir / "test.md"
@@ -403,7 +472,7 @@ class TestBundleMdFile:
         ]
 
         # Execute - should not raise exception
-        bundle_md_file(markdown_file, 3333, "test-graph", output_dir)
+        bundle_md_file(markdown_file, 3333, "test-graph", "test-token", output_dir)
 
         # Verify output file was still created
         output_file: Path = output_dir / "test.md"

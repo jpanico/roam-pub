@@ -8,14 +8,15 @@ fetching images via the Roam Local API, and updating Markdown files with local r
 import re
 import logging
 from pathlib import Path
-from typing import List, Tuple
-from pydantic import HttpUrl
+from typing import List, Tuple, overload
+from pydantic import HttpUrl, validate_call
 
 from roam_pub.roam_asset import ApiEndpointURL, FetchRoamAsset, RoamAsset
 
 logger = logging.getLogger(__name__)
 
 
+@validate_call
 def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
     """
     Find all Markdown image links in the text.
@@ -26,7 +27,11 @@ def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
     Returns:
         List of tuples: (full_match, image_url)
         Example: [('![](https://firebase...)', HttpUrl('https://firebase...'))]
+
+    Raises:
+        ValidationError: If markdown_text is None or invalid
     """
+
     # Regex pattern for Markdown images: ![alt text](url)
     # Matches: ![...](...) where the URL is a Firebase storage URL
     # re.DOTALL makes . match newlines, allowing multi-line alt text
@@ -43,12 +48,16 @@ def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
     return matches
 
 
-def fetch_and_save_image(api_endpoint: ApiEndpointURL, firebase_url: HttpUrl, output_dir: Path) -> Tuple[HttpUrl, str]:
+@validate_call
+def fetch_and_save_image(
+    api_endpoint: ApiEndpointURL, api_bearer_token: str, firebase_url: HttpUrl, output_dir: Path
+) -> Tuple[HttpUrl, str]:
     """
     Fetch an image from Roam and save it locally.
 
     Args:
         api_endpoint: The Roam Local API endpoint
+        api_bearer_token: The bearer token for authenticating with the Roam Local API
         firebase_url: The Firebase storage URL
         output_dir: Directory where the image should be saved
 
@@ -56,12 +65,15 @@ def fetch_and_save_image(api_endpoint: ApiEndpointURL, firebase_url: HttpUrl, ou
         Tuple of (firebase_url, local_file_path)
 
     Raises:
+        ValidationError: If any parameter is None or invalid
         Exception: If fetch or save fails
     """
     logger.info(f"Fetching image from: {firebase_url}")
 
     # Fetch the file from Roam
-    roam_asset: RoamAsset = FetchRoamAsset.fetch(api_endpoint=api_endpoint, firebase_url=firebase_url)
+    roam_asset: RoamAsset = FetchRoamAsset.fetch(
+        api_endpoint=api_endpoint, api_bearer_token=api_bearer_token, firebase_url=firebase_url
+    )
 
     # Save the file to the output directory
     output_path: Path = output_dir / roam_asset.file_name
@@ -73,17 +85,33 @@ def fetch_and_save_image(api_endpoint: ApiEndpointURL, firebase_url: HttpUrl, ou
     return (firebase_url, roam_asset.file_name)
 
 
-def replace_image_links(markdown_text: str, url_replacements: List[Tuple[HttpUrl, str]]) -> str:
+@overload
+def replace_image_links(markdown_text: None, url_replacements: List[Tuple[HttpUrl, str]]) -> None: ...
+
+
+@overload
+def replace_image_links(markdown_text: str, url_replacements: List[Tuple[HttpUrl, str]]) -> str: ...
+
+
+@validate_call
+def replace_image_links(markdown_text: str | None, url_replacements: List[Tuple[HttpUrl, str]]) -> str | None:
     """
     Replace Firebase URLs with local file paths in Markdown text.
 
     Args:
-        markdown_text: The original Markdown content
+        markdown_text: The original Markdown content (can be None)
         url_replacements: List of (firebase_url, local_filename) tuples
 
     Returns:
-        Updated Markdown text with local file references
+        Updated Markdown text with local file references, or None if markdown_text is None
+
+    Raises:
+        ValidationError: If url_replacements is invalid
     """
+    # Return None if markdown_text is None
+    if markdown_text is None:
+        return None
+
     updated_text: str = markdown_text
 
     for firebase_url, local_filename in url_replacements:
@@ -94,6 +122,7 @@ def replace_image_links(markdown_text: str, url_replacements: List[Tuple[HttpUrl
     return updated_text
 
 
+@validate_call
 def normalize_link_text(markdown_text: str) -> str:
     """
     Remove line breaks from link text in Markdown links.
@@ -107,6 +136,9 @@ def normalize_link_text(markdown_text: str) -> str:
 
     Returns:
         Markdown text with single-line link text
+
+    Raises:
+        ValidationError: If markdown_text is None or invalid
     """
     # Pattern to match both image links ![text](url) and regular links [text](url)
     # Captures: optional '!', link text (which may contain newlines), and url
@@ -125,6 +157,7 @@ def normalize_link_text(markdown_text: str) -> str:
     return re.sub(pattern, replace_newlines, markdown_text)
 
 
+@validate_call
 def remove_escaped_double_brackets(markdown_text: str) -> str:
     """
     Remove escaped double brackets from Markdown text.
@@ -137,6 +170,9 @@ def remove_escaped_double_brackets(markdown_text: str) -> str:
 
     Returns:
         Markdown text with escaped double brackets removed
+
+    Raises:
+        ValidationError: If markdown_text is None or invalid
     """
     # Remove escaped opening double brackets: \[\[
     text = markdown_text.replace(r"\[\[", "")
@@ -145,8 +181,9 @@ def remove_escaped_double_brackets(markdown_text: str) -> str:
     return text
 
 
+@validate_call
 def fetch_all_images(
-    image_links: List[Tuple[str, HttpUrl]], api_endpoint: ApiEndpointURL, output_dir: Path
+    image_links: List[Tuple[str, HttpUrl]], api_endpoint: ApiEndpointURL, api_bearer_token: str, output_dir: Path
 ) -> List[Tuple[HttpUrl, str]]:
     """
     Fetch and save all images from the provided list of image links.
@@ -154,15 +191,21 @@ def fetch_all_images(
     Args:
         image_links: List of (full_match, firebase_url) tuples
         api_endpoint: The Roam Local API endpoint
+        api_bearer_token: The bearer token for authenticating with the Roam Local API
         output_dir: Directory where images should be saved
 
     Returns:
         List of (firebase_url, local_filename) tuples for successfully fetched images
+
+    Raises:
+        ValidationError: If any parameter is None or invalid
     """
     url_replacements: List[Tuple[HttpUrl, str]] = []
     for full_match, firebase_url in image_links:
         try:
-            firebase_url_result, local_filename = fetch_and_save_image(api_endpoint, firebase_url, output_dir)
+            firebase_url_result, local_filename = fetch_and_save_image(
+                api_endpoint, api_bearer_token, firebase_url, output_dir
+            )
             url_replacements.append((firebase_url_result, local_filename))
         except Exception as e:
             logger.error(f"Failed to fetch {firebase_url}: {e}")
@@ -171,7 +214,10 @@ def fetch_all_images(
     return url_replacements
 
 
-def bundle_md_file(markdown_file: Path, local_api_port: int, graph_name: str, output_dir: Path) -> None:
+@validate_call
+def bundle_md_file(
+    markdown_file: Path, local_api_port: int, graph_name: str, api_bearer_token: str, output_dir: Path
+) -> None:
     """
     Bundle a Markdown file: fetch images and update links.
 
@@ -179,9 +225,11 @@ def bundle_md_file(markdown_file: Path, local_api_port: int, graph_name: str, ou
         markdown_file: Path to the Markdown file
         local_api_port: Port for Roam Local API
         graph_name: Name of the Roam graph
+        api_bearer_token: The bearer token for authenticating with the Roam Local API
         output_dir: Directory where bundle (translated md file and local images) should be saved
 
     Raises:
+        ValidationError: If any parameter is None or invalid
         FileNotFoundError: If markdown file doesn't exist
         Exception: If processing fails
     """
@@ -204,7 +252,9 @@ def bundle_md_file(markdown_file: Path, local_api_port: int, graph_name: str, ou
     api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=local_api_port, graph_name=graph_name)
 
     # Fetch and save all images
-    url_replacements: List[Tuple[HttpUrl, str]] = fetch_all_images(image_links, api_endpoint, output_dir)
+    url_replacements: List[Tuple[HttpUrl, str]] = fetch_all_images(
+        image_links, api_endpoint, api_bearer_token, output_dir
+    )
 
     # Replace URLs in the Markdown text
     if url_replacements:

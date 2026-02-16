@@ -1,7 +1,7 @@
 from datetime import datetime
 from string import Template
 from typing import ClassVar, Final, final
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, validate_call
 import requests
 import json
 import base64
@@ -84,12 +84,10 @@ class FetchRoamAsset:
     }
     """)
 
-
     @staticmethod
+    @validate_call
     def roam_file_from_response_json(response_json: str) -> RoamAsset:
         logger.debug(f"response_json: {response_json}")
-        if response_json is None:
-            raise TypeError("response_json cannot be None")
 
         response_payload: dict = json.loads(response_json)
         payload_result: dict = response_payload["result"]
@@ -108,6 +106,7 @@ class FetchRoamAsset:
         )
 
     @staticmethod
+    @validate_call
     def fetch(api_endpoint: ApiEndpointURL, api_bearer_token: str, firebase_url: HttpUrl) -> RoamAsset:
         """
         Fetch an asset (file) from Roam Research **Local** API. Because this goes through the Local API, the Roam Research
@@ -123,26 +122,20 @@ class FetchRoamAsset:
             RoamAsset object containing the fetched file data
 
         Raises:
-            TypeError: If api_endpoint, api_bearer_token, or file_url is None
+            ValidationError: If any parameter is None or invalid
             requests.exceptions.ConnectionError: If unable to connect to API
             requests.exceptions.HTTPError: If API returns error status
         """
 
         logger.debug(f"api_endpoint: {api_endpoint}, firebase_url: {firebase_url}")
-        if api_endpoint is None:
-            raise TypeError("api_endpoint cannot be None")
-        if api_bearer_token is None:
-            raise TypeError("api_bearer_token cannot be None")
-        if firebase_url is None:
-            raise TypeError("file_url cannot be None")
 
-        request_headers_str: str = FetchRoamAsset.REQUEST_HEADERS_TEMPLATE.substitute(roam_local_api_token=api_bearer_token)
+        request_headers_str: str = FetchRoamAsset.REQUEST_HEADERS_TEMPLATE.substitute(
+            roam_local_api_token=api_bearer_token
+        )
         request_headers: dict = json.loads(request_headers_str)
         request_payload_str: str = FetchRoamAsset.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
         request_payload: dict = json.loads(request_payload_str)
-        logger.info(
-            f"request_payload: {request_payload}, headers: {request_headers}, api: {api_endpoint}"
-        )
+        logger.info(f"request_payload: {request_payload}, headers: {request_headers}, api: {api_endpoint}")
 
         # The Local API expects a POST request with the file URL
         response: requests.Response = requests.post(

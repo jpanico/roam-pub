@@ -34,7 +34,8 @@
       "Bash(git checkout:*)",
       "Bash(grep:*)",
       "Bash(gh repo rename:*)",
-      "Bash(git remote set-url:*)"
+      "Bash(git remote set-url:*)",
+      "Bash(bundle-roam-md)"
     ]
   }
 }
