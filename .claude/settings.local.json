@@ -35,7 +35,10 @@
       "Bash(grep:*)",
       "Bash(gh repo rename:*)",
       "Bash(git remote set-url:*)",
-      "Bash(bundle-roam-md)"
+      "Bash(bundle-roam-md)",
+      "Bash(bundle-roam-md:*)",
+      "Bash(./src/roam_pub/bundle_roam_md.py:*)",
+      "Bash(./bundle-roam-md.sh:*)"
     ]
   }
 }

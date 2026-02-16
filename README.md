@@ -77,15 +77,71 @@ roam-pub/
 ├── tests/                  # Test files
 │   ├── test_roam_asset.py
 │   └── test_roam_md_bundle.py
+├── bundle-roam-md.sh       # Shell wrapper for direct execution
 ├── pyproject.toml          # Project configuration
 └── README.md
 ```
 
-## Scripts
+## Usage
 
-The package provides the following command-line script:
+### Running the Bundle Script
 
-- `bundle-roam-md`: Main utility for bundling Roam Research markdown files
+The package provides the `bundle-roam-md` command-line utility for bundling Roam Research markdown files with their Firebase-hosted images.
+
+**Method 1: Using the installed command (recommended)**
+
+After installing the package with `pip install -e ".[dev]"`, you can use the installed command with named arguments:
+
+```bash
+bundle-roam-md --markdown-file <file> --port <port> --graph <name> --token <token> --output <dir>
+```
+
+Example with long flags:
+```bash
+bundle-roam-md --markdown-file my_notes.md --port 3333 --graph SCFH --token your-bearer-token --output ./output
+```
+
+Example with short flags:
+```bash
+bundle-roam-md -m my_notes.md -p 3333 -g SCFH -t your-bearer-token -o ./output
+```
+
+**Method 2: Using the shell wrapper script**
+
+For direct execution without activating the virtual environment:
+
+```bash
+./bundle-roam-md.sh --markdown-file <file> --port <port> --graph <name> --token <token> --output <dir>
+```
+
+Example:
+```bash
+./bundle-roam-md.sh -m my_notes.md -p 3333 -g SCFH -t your-bearer-token -o ./output
+```
+
+**Getting help:**
+
+```bash
+bundle-roam-md --help
+# or
+./bundle-roam-md.sh --help
+```
+
+### What it does
+
+The script:
+1. Reads a Roam Research markdown file
+2. Finds all Firebase-hosted images (firebasestorage.googleapis.com URLs)
+3. Fetches each image via the Roam Local API
+4. Saves images locally in a `.bundle` directory
+5. Updates the markdown file with local image references
+6. Performs cleanup: normalizes link text and removes escaped brackets
+
+### Output
+
+Creates a directory named `<markdown_file>.bundle/` containing:
+- Updated markdown file with local image references
+- All downloaded images
 
 ## License
 

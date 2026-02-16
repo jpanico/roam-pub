@@ -3,16 +3,15 @@
 Script to bundle Roam Research Markdown files by fetching Firebase-hosted images
 and replacing them with local file references.
 
-Usage:
-    python bundle_roam_md.py <markdown_file> <local_api_port> <graph_name> <api_bearer_token> <output_dir>
-
 Example:
-    python bundle_roam_md.py my_notes.md 3333 SCFH your-bearer-token ./output
+    bundle-roam-md -m my_notes.md -p 3333 -g SCFH -t your-bearer-token -o ./output
 """
 
-import sys
 import logging
 from pathlib import Path
+
+import typer
+from typing_extensions import Annotated
 
 from roam_pub.roam_md_bundle import bundle_md_file
 
@@ -24,24 +23,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+app = typer.Typer()
 
-def main() -> None:
-    """Main entry point for the script."""
-    if len(sys.argv) != 6:
-        print(
-            "Usage: python bundle_roam_md.py <markdown_file> <local_api_port> <graph_name> <api_bearer_token> <output_dir>"
-        )
-        print()
-        print("Example:")
-        print("  python bundle_roam_md.py my_notes.md 3333 SCFH your-bearer-token ./output")
-        sys.exit(1)
 
-    markdown_file: Path = Path(sys.argv[1])
-    local_api_port: int = int(sys.argv[2])
-    graph_name: str = sys.argv[3]
-    api_bearer_token: str = sys.argv[4]
-    output_dir: Path = Path(sys.argv[5])
+@app.command()
+def main(
+    markdown_file: Annotated[Path, typer.Option("--markdown-file", "-m", help="Path to the Markdown file to process")],
+    local_api_port: Annotated[int, typer.Option("--port", "-p", help="Port for Roam Local API")],
+    graph_name: Annotated[str, typer.Option("--graph", "-g", help="Name of the Roam graph")],
+    api_bearer_token: Annotated[
+        str, typer.Option("--token", "-t", help="Bearer token for Roam Local API authentication")
+    ],
+    output_dir: Annotated[Path, typer.Option("--output", "-o", help="Directory where bundle should be saved")],
+) -> None:
+    """
+    Bundle a Roam Research Markdown file by fetching Firebase-hosted images
+    and replacing them with local file references.
 
+    Creates a .bundle directory containing the updated markdown file and all images.
+    """
     # Create bundle directory: <output_dir>/<markdown_file_name>.bundle/
     bundle_dir_name: str = f"{markdown_file.name}.bundle"
     bundle_dir: Path = output_dir / bundle_dir_name
@@ -52,8 +52,8 @@ def main() -> None:
         bundle_md_file(markdown_file, local_api_port, graph_name, api_bearer_token, bundle_dir)
     except Exception as e:
         logger.error(f"Error processing file: {e}")
-        sys.exit(1)
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
-    main()
+    app()
