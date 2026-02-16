@@ -35,7 +35,7 @@ class RoamAsset(BaseModel):
     """
     Roam uploads all user assets (files, media) to Firebase, and stores only Firebase locators (URLS) within the Roam graph DB
     itself (nodes). This class is an immutable representation of an asset that is fetched from Firebase *through*
-    the Roam api. 
+    the Roam api.
 
     Once created, instances cannot be modified (frozen). All fields are required
     and validated at construction time.

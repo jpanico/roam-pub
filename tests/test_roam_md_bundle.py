@@ -24,12 +24,17 @@ class TestFindMarkdownImageLinks:
 
     def test_finds_single_firebase_link(self) -> None:
         """Test finding a single Firebase image link."""
-        markdown_text: str = "![alt text](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=abc123)"
+        markdown_text: str = (
+            "![alt text](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=abc123)"
+        )
 
         matches: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
 
         assert len(matches) == 1
-        assert str(matches[0][1]) == "https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=abc123"
+        assert (
+            str(matches[0][1])
+            == "https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=abc123"
+        )
         assert isinstance(matches[0][1], HttpUrl)
 
     def test_finds_multiple_firebase_links(self) -> None:
@@ -106,20 +111,22 @@ class TestFindMarkdownImageLinks:
 class TestFetchAndSaveImage:
     """Tests for the fetch_and_save_image function."""
 
-    @patch('roam_pub.roam_md_bundle.FetchRoamAsset.fetch')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("roam_pub.roam_md_bundle.FetchRoamAsset.fetch")
+    @patch("builtins.open", new_callable=mock_open)
     def test_fetches_and_saves_image_successfully(self, mock_file: Mock, mock_fetch: Mock) -> None:
         """Test successful image fetch and save."""
         # Setup
         api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
-        firebase_url: HttpUrl = HttpUrl("https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc")
+        firebase_url: HttpUrl = HttpUrl(
+            "https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc"
+        )
         output_dir: Path = Path("/tmp/test")
 
         mock_roam_asset: RoamAsset = RoamAsset(
             file_name="test_image.png",
             last_modified=datetime.now(),
             media_type="image/png",
-            contents=b"fake image data"
+            contents=b"fake image data",
         )
         mock_fetch.return_value = mock_roam_asset
 
@@ -133,11 +140,13 @@ class TestFetchAndSaveImage:
         mock_fetch.assert_called_once()
         mock_file.assert_called_once_with(output_dir / "test_image.png", "wb")
 
-    @patch('roam_pub.roam_md_bundle.FetchRoamAsset.fetch')
+    @patch("roam_pub.roam_md_bundle.FetchRoamAsset.fetch")
     def test_fetch_failure_raises_exception(self, mock_fetch: Mock) -> None:
         """Test that fetch failure raises an exception."""
         api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
-        firebase_url: HttpUrl = HttpUrl("https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc")
+        firebase_url: HttpUrl = HttpUrl(
+            "https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc"
+        )
         output_dir: Path = Path("/tmp/test")
 
         mock_fetch.side_effect = Exception("Network error")
@@ -169,7 +178,7 @@ class TestReplaceImageLinks:
         """
         url_replacements: List[Tuple[HttpUrl, str]] = [
             (HttpUrl("https://firebasestorage.googleapis.com/o/img1.png"), "local1.png"),
-            (HttpUrl("https://firebasestorage.googleapis.com/o/img2.jpg"), "local2.jpg")
+            (HttpUrl("https://firebasestorage.googleapis.com/o/img2.jpg"), "local2.jpg"),
         ]
 
         result: str = replace_image_links(markdown_text, url_replacements)
@@ -297,7 +306,7 @@ class TestBundleMdFile:
         with pytest.raises(FileNotFoundError, match="Markdown file not found"):
             bundle_md_file(markdown_file, 3333, "test-graph", tmp_path)
 
-    @patch('roam_pub.roam_md_bundle.find_markdown_image_links')
+    @patch("roam_pub.roam_md_bundle.find_markdown_image_links")
     def test_no_firebase_links_exits_early(self, mock_find: Mock, tmp_path: Path) -> None:
         """Test that function exits early when no Firebase links found."""
         # Create separate input and output directories
@@ -319,8 +328,8 @@ class TestBundleMdFile:
         output_file: Path = output_dir / "test.md"
         assert not output_file.exists()
 
-    @patch('roam_pub.roam_md_bundle.fetch_and_save_image')
-    @patch('roam_pub.roam_md_bundle.find_markdown_image_links')
+    @patch("roam_pub.roam_md_bundle.fetch_and_save_image")
+    @patch("roam_pub.roam_md_bundle.find_markdown_image_links")
     def test_processes_file_successfully(self, mock_find: Mock, mock_fetch: Mock, tmp_path: Path) -> None:
         """Test successful file processing."""
         # Create separate input and output directories
@@ -336,8 +345,10 @@ class TestBundleMdFile:
 
         # Mock finding links
         mock_find.return_value = [
-            ("![image](https://firebasestorage.googleapis.com/o/img.png)",
-             "https://firebasestorage.googleapis.com/o/img.png")
+            (
+                "![image](https://firebasestorage.googleapis.com/o/img.png)",
+                "https://firebasestorage.googleapis.com/o/img.png",
+            )
         ]
 
         # Mock fetching and saving
@@ -355,8 +366,8 @@ class TestBundleMdFile:
         assert "local_image.png" in output_content
         assert "firebasestorage.googleapis.com" not in output_content
 
-    @patch('roam_pub.roam_md_bundle.fetch_and_save_image')
-    @patch('roam_pub.roam_md_bundle.find_markdown_image_links')
+    @patch("roam_pub.roam_md_bundle.fetch_and_save_image")
+    @patch("roam_pub.roam_md_bundle.find_markdown_image_links")
     def test_continues_on_fetch_error(self, mock_find: Mock, mock_fetch: Mock, tmp_path: Path) -> None:
         """Test that processing continues when one image fetch fails."""
         # Create separate input and output directories
@@ -375,16 +386,20 @@ class TestBundleMdFile:
 
         # Mock finding links
         mock_find.return_value = [
-            ("![image1](https://firebasestorage.googleapis.com/o/img1.png)",
-             "https://firebasestorage.googleapis.com/o/img1.png"),
-            ("![image2](https://firebasestorage.googleapis.com/o/img2.png)",
-             "https://firebasestorage.googleapis.com/o/img2.png")
+            (
+                "![image1](https://firebasestorage.googleapis.com/o/img1.png)",
+                "https://firebasestorage.googleapis.com/o/img1.png",
+            ),
+            (
+                "![image2](https://firebasestorage.googleapis.com/o/img2.png)",
+                "https://firebasestorage.googleapis.com/o/img2.png",
+            ),
         ]
 
         # Mock first fetch to fail, second to succeed
         mock_fetch.side_effect = [
             Exception("Network error"),
-            ("https://firebasestorage.googleapis.com/o/img2.png", "local_image2.png")
+            ("https://firebasestorage.googleapis.com/o/img2.png", "local_image2.png"),
         ]
 
         # Execute - should not raise exception

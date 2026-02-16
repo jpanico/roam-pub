@@ -171,9 +171,7 @@ def fetch_all_images(
     return url_replacements
 
 
-def bundle_md_file(
-    markdown_file: Path, local_api_port: int, graph_name: str, output_dir: Path
-) -> None:
+def bundle_md_file(markdown_file: Path, local_api_port: int, graph_name: str, output_dir: Path) -> None:
     """
     Bundle a Markdown file: fetch images and update links.
 
