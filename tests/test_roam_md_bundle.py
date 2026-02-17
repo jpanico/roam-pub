@@ -426,8 +426,13 @@ class TestBundleMdFile:
         # Execute
         bundle_md_file(markdown_file, 3333, "test-graph", "test-token", output_dir)
 
-        # Verify output file was created
-        output_file: Path = output_dir / "test.md"
+        # Verify bundle directory was created
+        bundle_dir: Path = output_dir / "test.md.mdbundle"
+        assert bundle_dir.exists()
+        assert bundle_dir.is_dir()
+
+        # Verify output file was created in the bundle directory
+        output_file: Path = bundle_dir / "test.md"
         assert output_file.exists()
 
         # Verify content was updated
@@ -474,8 +479,12 @@ class TestBundleMdFile:
         # Execute - should not raise exception
         bundle_md_file(markdown_file, 3333, "test-graph", "test-token", output_dir)
 
-        # Verify output file was still created
-        output_file: Path = output_dir / "test.md"
+        # Verify bundle directory was created
+        bundle_dir: Path = output_dir / "test.md.mdbundle"
+        assert bundle_dir.exists()
+
+        # Verify output file was still created in the bundle directory
+        output_file: Path = bundle_dir / "test.md"
         assert output_file.exists()
 
         # Verify second image was replaced

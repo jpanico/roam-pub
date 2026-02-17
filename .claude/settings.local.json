@@ -38,7 +38,25 @@
       "Bash(bundle-roam-md)",
       "Bash(bundle-roam-md:*)",
       "Bash(./src/roam_pub/bundle_roam_md.py:*)",
-      "Bash(./bundle-roam-md.sh:*)"
+      "Bash(./bundle-roam-md.sh:*)",
+      "Bash(./setup-mdbundle-handler.sh:*)",
+      "Bash(plutil:*)",
+      "Bash(/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister:*)",
+      "Bash(mdls:*)",
+      "Bash(defaults read:*)",
+      "Bash(duti -s:*)",
+      "Bash(duti:*)",
+      "Bash(open:*)",
+      "Bash(xattr -c:*)",
+      "Bash(mdimport:*)",
+      "Bash(test:*)",
+      "Bash(~/Applications/OpenMDBundle.app/Contents/MacOS/open-mdbundle:*)",
+      "Bash(__NEW_LINE_152709fba0544ef3__ plutil -insert CFBundleDocumentTypes -xml '\n<array>\n    <dict>\n        <key>CFBundleTypeName</key>\n        <string>Markdown Bundle</string>\n        <key>CFBundleTypeRole</key>\n        <string>Viewer</string>\n        <key>LSHandlerRank</key>\n        <string>Owner</string>\n        <key>LSItemContentTypes</key>\n        <array>\n            <string>com.local.markdown-bundle</string>\n        </array>\n    </dict>\n</array>' ~/Applications/OpenMDBundle.app/Contents/Info.plist)",
+      "Bash(__NEW_LINE_152709fba0544ef3__ echo \"Updated Info.plist\")",
+      "Bash(__NEW_LINE_5d706d0762e59769__ echo \"Replaced CFBundleDocumentTypes\")",
+      "Bash(__NEW_LINE_f9809690c6f2709b__ echo \"Added UTExportedTypeDeclarations\")",
+      "Bash(killall:*)",
+      "Bash(./setup-mdbundle-handler-v2.sh:*)"
     ]
   }
 }

@@ -69,16 +69,19 @@ black --check .
 ```
 roam-pub/
 ├── src/
-│   └── roam_pub/          # Main package code
+│   └── roam_pub/              # Main package code
 │       ├── __init__.py
 │       ├── roam_asset.py
 │       ├── roam_md_bundle.py
 │       └── bundle_roam_md.py
-├── tests/                  # Test files
+├── tests/                      # Test files
 │   ├── test_roam_asset.py
 │   └── test_roam_md_bundle.py
-├── bundle-roam-md.sh       # Shell wrapper for direct execution
-├── pyproject.toml          # Project configuration
+├── docs/
+│   └── MDBUNDLE_SETUP.md      # macOS .mdbundle integration guide
+├── bundle-roam-md.sh          # Shell wrapper for direct execution
+├── setup-mdbundle-handler.sh  # Setup .mdbundle auto-open in Typora
+├── pyproject.toml             # Project configuration
 └── README.md
 ```
 
@@ -139,9 +142,42 @@ The script:
 
 ### Output
 
-Creates a directory named `<markdown_file>.bundle/` containing:
+Creates a directory named `<markdown_file>.mdbundle/` containing:
 - Updated markdown file with local image references
 - All downloaded images
+
+### macOS Integration: Auto-Open in Typora
+
+To configure macOS to automatically open `.mdbundle` folders in Typora when double-clicked:
+
+1. **Run the setup script:**
+   ```bash
+   ./setup-mdbundle-handler.sh
+   ```
+
+   This creates and registers `OpenMDBundle.app` which handles `.mdbundle` folders.
+
+2. **Refresh existing .mdbundle folders (if any):**
+   ```bash
+   ./refresh-mdbundle-folders.sh ~/wip
+   ```
+
+   This updates the metadata for existing `.mdbundle` folders so macOS recognizes them properly.
+
+3. **Done!** Double-clicking any `.mdbundle` folder will now open the markdown file in Typora
+
+**How it works:**
+- Double-clicking a `.mdbundle` folder launches `OpenMDBundle.app`
+- The app uses AppleScript to properly handle the "open" event from macOS
+- It extracts the markdown filename and opens it in Typora
+
+**Troubleshooting:**
+- If double-clicking doesn't work, try logging out and back in
+- Right-click a `.mdbundle` folder → Get Info to verify "OpenMDBundle" appears under "Open with:"
+- If it doesn't appear, run `mdimport <folder>` to force macOS to recognize it
+- Test from command line: `open ~/path/to/your.mdbundle` should open in Typora
+
+See [docs/MDBUNDLE_SETUP.md](docs/MDBUNDLE_SETUP.md) for detailed instructions and troubleshooting.
 
 ## License
 

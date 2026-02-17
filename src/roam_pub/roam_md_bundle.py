@@ -219,14 +219,18 @@ def bundle_md_file(
     markdown_file: Path, local_api_port: int, graph_name: str, api_bearer_token: str, output_dir: Path
 ) -> None:
     """
-    Bundle a Markdown file: fetch images and update links.
+    Bundle a Markdown file: fetch and save Firebase-hosted images and update image links in <markdown_file>
+    to use local file references in place of Firebase URLs.
+
+    Creates a .mdbundle directory named <markdown_file>.mdbundle/ in the output_dir,
+    containing the updated markdown file and all downloaded images.
 
     Args:
         markdown_file: Path to the Markdown file
         local_api_port: Port for Roam Local API
         graph_name: Name of the Roam graph
         api_bearer_token: The bearer token for authenticating with the Roam Local API
-        output_dir: Directory where bundle (translated md file and local images) should be saved
+        output_dir: Parent directory where the .mdbundle folder will be created
 
     Raises:
         ValidationError: If any parameter is None or invalid
@@ -235,6 +239,12 @@ def bundle_md_file(
     """
     if not markdown_file.exists():
         raise FileNotFoundError(f"Markdown file not found: {markdown_file}")
+
+    # Create bundle directory: <output_dir>/<markdown_file_name>.mdbundle/
+    bundle_dir_name: str = f"{markdown_file.name}.mdbundle"
+    bundle_dir: Path = output_dir / bundle_dir_name
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Created bundle directory: {bundle_dir}")
 
     logger.info(f"Processing Markdown file: {markdown_file}")
 
@@ -251,9 +261,9 @@ def bundle_md_file(
     # Create API endpoint
     api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=local_api_port, graph_name=graph_name)
 
-    # Fetch and save all images
+    # Fetch and save all images to the bundle directory
     url_replacements: List[Tuple[HttpUrl, str]] = fetch_all_images(
-        image_links, api_endpoint, api_bearer_token, output_dir
+        image_links, api_endpoint, api_bearer_token, bundle_dir
     )
 
     # Replace URLs in the Markdown text
@@ -266,8 +276,8 @@ def bundle_md_file(
         # Remove escaped double brackets from Roam page links
         updated_text = remove_escaped_double_brackets(updated_text)
 
-        # Write the updated Markdown file
-        output_file: Path = output_dir / markdown_file.name
+        # Write the updated Markdown file to the bundle directory
+        output_file: Path = bundle_dir / markdown_file.name
         output_file.write_text(updated_text, encoding="utf-8")
         logger.info(f"Wrote updated Markdown to: {output_file}")
         logger.info(f"Successfully processed {len(url_replacements)} images")
