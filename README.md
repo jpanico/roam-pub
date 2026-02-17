@@ -77,10 +77,12 @@ roam-pub/
 ├── tests/                      # Test files
 │   ├── test_roam_asset.py
 │   └── test_roam_md_bundle.py
+├── scripts/                    # Utility scripts
+│   ├── setup-mdbundle-handler.sh   # Setup .mdbundle auto-open in Typora
+│   └── refresh-mdbundle-folders.sh # Refresh existing .mdbundle folders
 ├── docs/
 │   └── MDBUNDLE_SETUP.md      # macOS .mdbundle integration guide
 ├── bundle-roam-md.sh          # Shell wrapper for direct execution
-├── setup-mdbundle-handler.sh  # Setup .mdbundle auto-open in Typora
 ├── pyproject.toml             # Project configuration
 └── README.md
 ```
@@ -152,14 +154,14 @@ To configure macOS to automatically open `.mdbundle` folders in Typora when doub
 
 1. **Run the setup script:**
    ```bash
-   ./setup-mdbundle-handler.sh
+   ./scripts/setup-mdbundle-handler.sh
    ```
 
    This creates and registers `OpenMDBundle.app` which handles `.mdbundle` folders.
 
 2. **Refresh existing .mdbundle folders (if any):**
    ```bash
-   ./refresh-mdbundle-folders.sh ~/wip
+   ./scripts/refresh-mdbundle-folders.sh ~/wip
    ```
 
    This updates the metadata for existing `.mdbundle` folders so macOS recognizes them properly.
