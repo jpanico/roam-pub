@@ -1,19 +1,39 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Project Overview
+Python 3.14 toolkit for bundling Roam Research markdown exports with their
+Firebase-hosted images into self-contained `.mdbundle` directories.
 
-## Project Setup
-
-This is a Python 3.14 project using a virtual environment.
-
+## Setup
 ```bash
-# Activate the virtual environment
 source .venv/bin/activate
-
-# Install dependencies (when requirements.txt exists)
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
-## Scripts
+## Key Commands
+```bash
+bundle-roam-md -m <file> -p <port> -g <graph> -t <token> -o <output_dir>
+pytest          # run tests
+black .         # format code
+pyright         # type check (strict)
+```
 
-### roam_convert.py
+## Project Structure
+- `src/roam_pub/` — main package
+  - `bundle_roam_md.py` — CLI entry point (Typer app)
+  - `roam_md_bundle.py` — core bundling logic
+  - `roam_asset.py` — Firebase asset fetching
+  - `roam_model.py`, `roam_page.py`, `roam_transcribe.py` — in progress
+- `tests/fixtures/` — sample markdown, images, JSON for tests
+
+## Conventions
+- Src layout: package lives under `src/roam_pub/`
+- Line length: 120 chars (Black + Ruff)
+- Docstrings: Google style (enforced by Ruff)
+- Tests: pytest, files named `test_*.py`
+- **Strong typing**: all Python code must use type annotations throughout; no `Any` types; enforced by pyright in strict mode
+
+## Environment Variables (referenced by `bundle_roam_md.py` CLI args)
+- `ROAM_LOCAL_API_PORT` — port for Roam Local API
+- `ROAM_GRAPH_NAME` — Roam graph name
+- `ROAM_API_TOKEN` — bearer token for auth

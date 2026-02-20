@@ -57,7 +57,13 @@
       "Bash(__NEW_LINE_f9809690c6f2709b__ echo \"Added UTExportedTypeDeclarations\")",
       "Bash(killall:*)",
       "Bash(./setup-mdbundle-handler-v2.sh:*)",
-      "Bash(ruff check:*)"
+      "Bash(ruff check:*)",
+      "WebFetch(domain:www.putyourleftfoot.in)",
+      "WebFetch(domain:www.zsolt.blog)",
+      "WebFetch(domain:davidbieber.com)",
+      "Bash(curl:*)",
+      "Bash(git -C /Users/jpanico/Documents/github/roam-pub add src/roam_pub/roam_transcribe.py)",
+      "Bash(git -C /Users/jpanico/Documents/github/roam-pub add tests/test_roam_transcribe.py)"
     ]
   }
 }

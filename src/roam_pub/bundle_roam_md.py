@@ -47,7 +47,7 @@ def validate_markdown_file(markdown_file: Path) -> None:
 
     try:
         # Test if file is readable by attempting to open it
-        with markdown_file.open("r") as f:
+        with markdown_file.open("r") as _:
             pass
     except PermissionError:
         logger.error(f"Permission denied reading file: {markdown_file}")

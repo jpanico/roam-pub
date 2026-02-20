@@ -239,7 +239,7 @@ def normalize_link_text(markdown_text: str) -> str:
     # Captures: optional '!', link text (which may contain newlines), and url
     pattern = r"(!?\[)((?:[^\]]|\n)+?)(\]\([^\)]+\))"
 
-    def replace_newlines(match: re.Match) -> str:
+    def replace_newlines(match: re.Match[str]) -> str:
         prefix: str = match.group(1)  # '![' or '['
         link_text: str = match.group(2)  # The link text (may have newlines)
         suffix: str = match.group(3)  # '](url)'
@@ -299,7 +299,7 @@ def fetch_all_images(
         ValidationError: If any parameter is None or invalid
     """
     url_replacements: List[Tuple[HttpUrl, str]] = []
-    for full_match, firebase_url in image_links:
+    for _, firebase_url in image_links:
         try:
             firebase_url_result, local_filename = fetch_and_save_image(
                 api_endpoint, api_bearer_token, firebase_url, output_dir, cache_dir

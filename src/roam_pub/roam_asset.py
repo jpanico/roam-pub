@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from string import Template
-from typing import ClassVar, Final, final
+from typing import ClassVar, Final, TypedDict, cast, final
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, validate_call
 import requests
 import json
@@ -51,6 +51,34 @@ class RoamAsset(BaseModel):
     contents: bytes = Field(..., description="Binary file contents")
 
 
+class _FileGetArg(TypedDict):
+    """Typed structure for a single argument in a Roam Local API file.get request."""
+
+    url: str
+    format: str
+
+
+class _FileGetPayload(TypedDict):
+    """Typed structure for a Roam Local API file.get request payload."""
+
+    action: str
+    args: list[_FileGetArg]
+
+
+class _RoamFileResult(TypedDict):
+    """Typed structure for the 'result' field in a Roam Local API file.get response."""
+
+    base64: str
+    filename: str
+    mimetype: str
+
+
+class _RoamFileResponse(TypedDict):
+    """Typed structure for a Roam Local API file.get response payload."""
+
+    result: _RoamFileResult
+
+
 @final
 class FetchRoamAsset:
     """Stateless utility class for fetching Roam assets from the Roam Research Local API.
@@ -92,8 +120,8 @@ class FetchRoamAsset:
         """Parse a Roam Local API JSON response into a RoamAsset."""
         logger.debug(f"response_json: {response_json}")
 
-        response_payload: dict = json.loads(response_json)
-        payload_result: dict = response_payload["result"]
+        response_payload: _RoamFileResponse = cast(_RoamFileResponse, json.loads(response_json))
+        payload_result: _RoamFileResult = response_payload["result"]
         file_bytes: bytes = base64.b64decode(payload_result["base64"])
         file_name: str = payload_result["filename"]
         media_type: str = payload_result["mimetype"]
@@ -135,9 +163,9 @@ class FetchRoamAsset:
         request_headers_str: str = FetchRoamAsset.REQUEST_HEADERS_TEMPLATE.substitute(
             roam_local_api_token=api_bearer_token
         )
-        request_headers: dict = json.loads(request_headers_str)
+        request_headers: dict[str, str] = cast(dict[str, str], json.loads(request_headers_str))
         request_payload_str: str = FetchRoamAsset.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
-        request_payload: dict = json.loads(request_payload_str)
+        request_payload: _FileGetPayload = cast(_FileGetPayload, json.loads(request_payload_str))
         logger.info(f"request_payload: {request_payload}, headers: {request_headers}, api: {api_endpoint}")
 
         # The Local API expects a POST request with the file URL

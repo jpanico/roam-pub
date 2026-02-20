@@ -1,0 +1,35 @@
+{
+    "success": true,
+    "result": [
+        [
+            {
+                "prevent-clean": 1771013145740,
+                "children": [
+                    {
+                        "id": 2371
+                    },
+                    {
+                        "id": 2396
+                    },
+                    {
+                        "id": 2430
+                    }
+                ],
+                "user": {
+                    "id": 3
+                },
+                "sidebar": 16,
+                "id": 2370,
+                "uid": "XO4nOy4D6",
+                "time": 1764876416940,
+                "title": "[[Illustration]] Brief",
+                "refs": [
+                    {
+                        "id": 2459
+                    }
+                ]
+            }
+        ]
+    ],
+    "apiVersion": "1.1.0"
+}
