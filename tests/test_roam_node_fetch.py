@@ -297,7 +297,7 @@ class TestFetchRoamNodesFetch:
                             "page": {"id": 1},
                             "open": True,
                             "parents": [{"id": 1}],
-                            "props": {":ah-level": "h4"},
+                            "props": {"ah-level": "h4"},
                         }
                     ],
                     [
@@ -328,10 +328,10 @@ class TestFetchRoamNodesFetch:
         # Page node: no props
         assert by_uid["headng001"].props is None
 
-        # H4 augmented-heading block: props present with :ah-level key
+        # H4 augmented-heading block: props present with ah-level key
         h4_node = by_uid["h4block01"]
         assert h4_node.props is not None
-        assert h4_node.props[":ah-level"] == "h4"
+        assert h4_node.props["ah-level"] == "h4"
 
         # Plain block: no props
         assert by_uid["plain0001"].props is None

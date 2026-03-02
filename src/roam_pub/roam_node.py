@@ -50,8 +50,7 @@ class RoamNode(BaseModel):
         sidebar: Sidebar state. Present only on Pages.
         parents: IdObject stubs for all ancestor blocks (BLOCK_PARENTS). Present only on Blocks.
         props: Block property key-value map (BLOCK_PROPS). Present only on Blocks that have block
-            properties set (e.g. ``ah-level`` from the Augmented Headings extension). Keys retain
-            their leading colon prefix as returned by the Local API.
+            properties set (e.g. ``ah-level`` from the Augmented Headings extension).
         attrs: Structured attribute assertions (ENTITY_ATTRS).
         lookup: IdObject stubs for ATTRS_LOOKUP. Purpose unclear.
         seen_by: IdObject stubs for EDIT_SEEN_BY. Purpose unclear.
@@ -93,8 +92,7 @@ class RoamNode(BaseModel):
         default=None,
         description=(
             f"{RoamAttribute.BLOCK_PROPS} — block property key-value map; "
-            "present only on Blocks that have block properties set (e.g. ``ah-level`` from Augmented Headings). "
-            "Keys retain their leading colon prefix as returned by the Local API (e.g. ``':ah-level'``)."
+            "present only on Blocks that have block properties set (e.g. ``ah-level`` from Augmented Headings)."
         ),
     )
 

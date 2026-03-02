@@ -95,7 +95,9 @@
       "Bash(ROAM_LIVE_TESTS= pytest tests/test_roam_node_fetch.py -x)",
       "Bash(dump-roam-page \"Test Article\")",
       "Bash(dump-roam-page \"Test Article\" --prop order --prop page)",
-      "Bash(git mv bundle-roam-md.sh scripts/bundle-roam-md.sh)"
+      "Bash(git mv bundle-roam-md.sh scripts/bundle-roam-md.sh)",
+      "Bash(python3 -c \":*)",
+      "Bash(python3 -c \"import json; json.load\\(open\\(''/Users/jpanico/Documents/github/roam-pub/tests/fixtures/json/image_node.json''\\)\\); print\\(''valid''\\)\")"
     ]
   }
 }

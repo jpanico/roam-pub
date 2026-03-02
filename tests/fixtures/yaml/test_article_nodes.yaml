@@ -1,7 +1,7 @@
 # YAML fixture for the 'Test Article' NodeNetwork.
 # Captured from a live FetchRoamNodes.fetch_by_page_title call against the
-# SCFH graph on 2026-03-01. Serialised with yaml.dump(exclude_none=True,
-# default_flow_style=False, allow_unicode=True, sort_keys=False).
+# SCFH graph on 2026-03-02. Serialised with model_dump() and yaml.dump(
+#   default_flow_style=False, allow_unicode=True, sort_keys=False).
 - uid: yFUau9Cpg
   id: 4025
   time: 1771515468425
@@ -20,6 +20,8 @@
   - id: 3327
   - id: 3329
   - id: 3332
+  props:
+    ah-level: h4
   title: null
   sidebar: null
   attrs: null
@@ -43,6 +45,11 @@
   - id: 3328
   - id: 3331
   - id: 3334
+  props:
+    image-size:
+      ? https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94
+      : width: 347
+        height: null
   title: null
   sidebar: null
   attrs: null
@@ -64,6 +71,7 @@
   parents:
   - id: 3327
   - id: 3328
+  props: null
   title: null
   sidebar: null
   attrs: null
@@ -86,6 +94,7 @@
   open: true
   parents:
   - id: 3327
+  props: null
   title: null
   sidebar: null
   attrs: null
@@ -107,6 +116,7 @@
   open: true
   parents:
   - id: 3327
+  props: null
   title: null
   sidebar: null
   attrs: null
@@ -130,6 +140,8 @@
   - id: 3327
   - id: 3328
   - id: 3331
+  props:
+    ah-level: h4
   title: null
   sidebar: null
   attrs: null
@@ -152,6 +164,7 @@
   open: true
   parents:
   - id: 3327
+  props: null
   title: null
   sidebar: null
   attrs: null
@@ -174,6 +187,7 @@
   parents:
   - id: 3327
   - id: 3328
+  props: null
   title: null
   sidebar: null
   attrs: null
@@ -197,6 +211,8 @@
   - id: 3329
   - id: 3332
   - id: 4025
+  props:
+    ah-level: h5
   title: null
   sidebar: null
   attrs: null
@@ -219,6 +235,7 @@
   parents:
   - id: 3327
   - id: 3329
+  props: null
   title: null
   sidebar: null
   attrs: null
@@ -240,6 +257,7 @@
   parents:
   - id: 3327
   - id: 3329
+  props: null
   title: null
   sidebar: null
   attrs: null
@@ -261,6 +279,7 @@
   page: null
   open: null
   parents: null
+  props: null
   title: Test Article
   sidebar: 18
   attrs: null
@@ -282,6 +301,7 @@
   parents:
   - id: 3327
   - id: 3330
+  props: null
   title: null
   sidebar: null
   attrs: null

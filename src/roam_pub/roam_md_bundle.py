@@ -15,7 +15,7 @@ from pydantic import HttpUrl, validate_call
 
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_asset_fetch import FetchRoamAsset
-from roam_pub.roam_asset import RoamAsset
+from roam_pub.roam_asset import FIRESTORE_IMAGE_RE, RoamAsset
 
 logger = logging.getLogger(__name__)
 
@@ -92,15 +92,10 @@ def find_markdown_image_links(markdown_text: str) -> list[tuple[str, HttpUrl]]:
     Raises:
         ValidationError: If markdown_text is None or invalid
     """
-    # Regex pattern for Markdown images: ![alt text](url)
-    # Matches: ![...](...) where the URL is a Cloud Firestore storage URL
-    # re.DOTALL makes . match newlines, allowing multi-line alt text
-    pattern: str = r"!\[((?:[^\]]|\n)*?)\]\((https://firebasestorage\.googleapis\.com/[^\)]+)\)"
-
     matches: list[tuple[str, HttpUrl]] = []
-    for match in re.finditer(pattern, markdown_text):
+    for match in FIRESTORE_IMAGE_RE.finditer(markdown_text):
         full_match: str = match.group(0)  # Full ![...](...)
-        image_url_str: str = match.group(2)  # Just the URL as string
+        image_url_str: str = match.group("url")  # Just the URL as string
         image_url: HttpUrl = HttpUrl(image_url_str)  # Convert to HttpUrl
         matches.append((full_match, image_url))
 

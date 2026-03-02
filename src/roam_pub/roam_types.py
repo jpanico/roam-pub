@@ -4,8 +4,7 @@ Public symbols are organized into three groups:
 
 - **Primitive type aliases**: :data:`Uid`, :data:`Id`, :data:`Order`, :data:`HeadingLevel`,
   :data:`PageTitle`, :data:`Url`, :data:`MediaType`.
-- **Composite type aliases**: :data:`UidPair`, :data:`RawChildren`, :data:`RawRefs`,
-  :data:`NormalChildren`, :data:`NormalRefs`.
+- **Composite type aliases**: :data:`UidPair`, :data:`RawChildren`, :data:`RawRefs`.
 - **Stub models**: :class:`IdObject`, :class:`LinkObject`.
 """
 
@@ -103,18 +102,4 @@ type RawRefs = list[IdObject]
 """Page/block reference stubs as returned directly by ``pull [*]``.
 
 Same shape as :data:`RawChildren` — :class:`IdObject` stubs awaiting normalization.
-"""
-
-type NormalChildren = list[Uid]
-"""Ordered list of child block UIDs after normalization.
-
-Raw :class:`IdObject` stubs are resolved to stable ``:block/uid`` strings and
-sorted by ``:block/order`` during the normalization pass.
-"""
-
-type NormalRefs = list[Uid]
-"""List of referenced page/block UIDs after normalization.
-
-Raw :class:`IdObject` stubs are resolved to stable ``:block/uid`` strings
-during the normalization pass.
 """
