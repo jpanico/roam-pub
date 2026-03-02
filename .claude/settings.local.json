@@ -93,7 +93,8 @@
       "Bash(pip show rich)",
       "Bash(git rm tests/fixtures/yaml/test_article_nodes.py tests/fixtures/yaml/__init__.py tests/fixtures/__init__.py)",
       "Bash(ROAM_LIVE_TESTS= pytest tests/test_roam_node_fetch.py -x)",
-      "Bash(dump-roam-page \"Test Article\")"
+      "Bash(dump-roam-page \"Test Article\")",
+      "Bash(dump-roam-page \"Test Article\" --prop order --prop page)"
     ]
   }
 }

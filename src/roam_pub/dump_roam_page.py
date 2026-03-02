@@ -15,7 +15,7 @@ import typer
 from rich.console import Console
 from rich.tree import Tree as RichTree
 
-from roam_pub.rich import build_rich_tree
+from roam_pub.rich import DEFAULT_PANEL_PROPS, build_rich_tree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
@@ -60,6 +60,17 @@ def main(
             help="Bearer token for Roam Local API authentication",
         ),
     ],
+    props: Annotated[
+        str | None,
+        typer.Option(
+            "--props",
+            help=(
+                "Comma-separated list of RoamNode property names to include in each panel body. "
+                f"Example: --props heading,parents. "
+                f"Defaults to: {','.join(DEFAULT_PANEL_PROPS)}."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Dump a Roam Research page as a Rich tree to the console.
 
@@ -78,7 +89,10 @@ def main(
         logger.error(f"Error fetching page '{page_title}': {e}")
         raise typer.Exit(code=1)
 
-    trees: list[RichTree] = build_rich_tree(nodes)
+    effective_props: list[str] = (
+        [p.strip() for p in props.split(",")] if props is not None else list(DEFAULT_PANEL_PROPS)
+    )
+    trees: list[RichTree] = build_rich_tree(nodes, effective_props)
 
     console: Console = Console()
     for tree in trees:
