@@ -264,6 +264,78 @@ class TestFetchRoamNodesFetch:
         assert nodes[0].time == 1700000000000
         assert nodes[0].children == [IdObject(id=42)]
 
+    def test_block_props_preserved(self, api_endpoint: ApiEndpoint) -> None:
+        """Test that block properties (:block/props) survive the HTTP round-trip.
+
+        Blocks with Augmented Headings set (e.g. ah-level: h4) return a ``props``
+        key in the pull-block JSON.  Verifies that the field is parsed into
+        ``RoamNode.props`` and that nodes without ``props`` in the JSON get ``None``.
+        """
+        mock_response: MagicMock = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = json.dumps(
+            {
+                "success": True,
+                "result": [
+                    [
+                        {
+                            "title": "Heading Page",
+                            "uid": "headng001",
+                            "id": 1,
+                            "time": 1700000000000,
+                            "user": {"id": 3},
+                        }
+                    ],
+                    [
+                        {
+                            "string": "An H4 heading block",
+                            "uid": "h4block01",
+                            "id": 2,
+                            "time": 1700000000001,
+                            "user": {"id": 3},
+                            "order": 0,
+                            "page": {"id": 1},
+                            "open": True,
+                            "parents": [{"id": 1}],
+                            "props": {":ah-level": "h4"},
+                        }
+                    ],
+                    [
+                        {
+                            "string": "A plain block",
+                            "uid": "plain0001",
+                            "id": 3,
+                            "time": 1700000000002,
+                            "user": {"id": 3},
+                            "order": 1,
+                            "page": {"id": 1},
+                            "open": True,
+                            "parents": [{"id": 1}],
+                        }
+                    ],
+                ],
+            }
+        )
+
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
+            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
+                page_title="Heading Page", api_endpoint=api_endpoint
+            )
+
+        assert len(nodes) == 3
+        by_uid: dict[str, RoamNode] = {n.uid: n for n in nodes}
+
+        # Page node: no props
+        assert by_uid["headng001"].props is None
+
+        # H4 augmented-heading block: props present with :ah-level key
+        h4_node = by_uid["h4block01"]
+        assert h4_node.props is not None
+        assert h4_node.props[":ah-level"] == "h4"
+
+        # Plain block: no props
+        assert by_uid["plain0001"].props is None
+
     @pytest.mark.live
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
     def test_fetch_testarticle(self) -> None:

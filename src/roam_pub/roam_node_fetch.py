@@ -59,6 +59,13 @@ class FetchRoamNodes:
         through ``:block/children`` at any depth (second branch, driven by
         :attr:`DESCENDANT_RULE`).  Input bindings: ``?title`` (page title string) and
         ``%`` (rules vector — :attr:`DESCENDANT_RULE`).
+
+        The ``pull [*]`` wildcard fetches every DataScript attribute present on each entity,
+        including ``:block/props`` — the block property key-value map populated by Roam
+        extensions such as Augmented Headings (e.g. ``ah-level: h4``).  Block properties
+        only appear in the result when they have actually been set on a given block; absent
+        block properties are silently omitted, and :attr:`~roam_pub.roam_node.RoamNode.props`
+        will be ``None`` for those nodes.
         """
 
         DESCENDANT_RULE: Final[str] = textwrap.dedent("""\
@@ -112,7 +119,10 @@ class FetchRoamNodes:
 
         Returns:
             A list of :class:`RoamNode` instances whose ``:node/title`` matches
-            ``page_title``.  Returns an empty list if no matching page exists.
+            ``page_title``.  Each node's :attr:`~roam_pub.roam_node.RoamNode.props`
+            field is populated when the block has block properties set (e.g. an
+            ``ah-level`` value from the Augmented Headings extension).
+            Returns an empty list if no matching page exists.
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.

@@ -9,12 +9,16 @@ Public symbols:
   from a :data:`~roam_pub.roam_node.NodeNetwork`, one per root node.
 """
 
+import logging
+
 from rich.panel import Panel
 from rich.text import Text
 from rich.tree import Tree as RichTree
 
 from roam_pub.roam_node import NodeNetwork, RoamNode, is_root
 from roam_pub.roam_types import Id
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_PANEL_PROPS: list[str] = ["heading", "order", "children", "parents", "page"]
 """Property names rendered in the panel body by :func:`make_panel` when no explicit list is given.
@@ -62,6 +66,8 @@ def _format_node_prop(node: RoamNode, prop: str) -> str:
             return f"heading={node.heading}"
         case "attrs":
             return f"attrs={node.attrs}"
+        case "props":
+            return f"props={node.props}"
         case "lookup":
             val = f"[{', '.join(str(lk.id) for lk in node.lookup)}]" if node.lookup else "None"
             return f"lookup={val}"
@@ -96,6 +102,7 @@ def make_panel(node: RoamNode, props: list[str] = DEFAULT_PANEL_PROPS) -> Panel:
     Returns:
         A :class:`~rich.panel.Panel` with a labelled title and metadata body.
     """
+    logger.debug("node=%r, props=%r", node, props)
     text: str = node.string or node.title or f"(uid={node.uid})"
     if node.heading is not None and "heading" in props:
         text = f"H{node.heading}: {text}"
@@ -119,6 +126,7 @@ def _populate_subtree(node: RoamNode, rich_parent: RichTree, id_map: dict[Id, Ro
             :class:`~roam_pub.roam_node.RoamNode`, used to resolve child stubs.
         props: Property names forwarded to :func:`make_panel` for each child.
     """
+    logger.debug("node=%r, rich_parent=%r, id_map=%r, props=%r", node, rich_parent, id_map, props)
     if node.children:
         child_nodes: list[RoamNode] = sorted(
             [id_map[c.id] for c in node.children if c.id in id_map],
@@ -144,6 +152,7 @@ def build_rich_tree(network: NodeNetwork, props: list[str] = DEFAULT_PANEL_PROPS
     Returns:
         One :class:`~rich.tree.Tree` per root node, in order.
     """
+    logger.debug("network=%r, props=%r", network, props)
     id_map: dict[Id, RoamNode] = {n.id: n for n in network}
     roots: list[RoamNode] = sorted(
         [n for n in network if is_root(n, network)],

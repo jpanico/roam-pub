@@ -9,7 +9,9 @@ Example:
 """
 
 import logging
-from typing import Annotated
+import os
+import re
+from typing import Annotated, TextIO
 
 import typer
 from rich.console import Console
@@ -20,10 +22,59 @@ from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
 
+_LEVEL_COLORS: dict[str, str] = {
+    "DEBUG": "\033[36m",
+    "INFO": "\033[32m",
+    "WARNING": "\033[33m",
+    "ERROR": "\033[31m",
+    "CRITICAL": "\033[1;31m",
+}
+_LOCATION_COLOR: str = "\033[35m"  # magenta — distinct from all level colors
+_COLOR_RESET: str = "\033[0m"
+
+_MESSAGE_HIGHLIGHTS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"\s*id=\d+,"), "\033[1;97m"),  # bold bright white
+]
+
+
+def _highlight_message(message: str) -> str:
+    """Return *message* with all :data:`_MESSAGE_HIGHLIGHTS` patterns ANSI-colorized."""
+    for pattern, color in _MESSAGE_HIGHLIGHTS:
+        message = pattern.sub(lambda m, c=color: f"{c}{m.group()}{_COLOR_RESET}", message)
+    return message
+
+
+class _ColorLevelFormatter(logging.Formatter):
+    """Formatter that ANSI-colorizes the levelname, call-site location, and message highlights."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Format *record*, colorizing levelname, module::funcName location, and message highlights."""
+        color = _LEVEL_COLORS.get(record.levelname, "")
+        original_levelname = record.levelname
+        original_msg = record.msg
+        original_args = record.args
+        record.levelname = f"{color}[{record.levelname}]{_COLOR_RESET}"
+        setattr(record, "location", f"{_LOCATION_COLOR}({record.module}::{record.funcName}){_COLOR_RESET}")
+        record.msg = _highlight_message(record.getMessage())
+        record.args = None
+        result = super().format(record)
+        record.levelname = original_levelname
+        record.msg = original_msg
+        record.args = original_args
+        delattr(record, "location")
+        return result
+
+
+_handler: logging.StreamHandler[TextIO] = logging.StreamHandler()
+_handler.setFormatter(
+    _ColorLevelFormatter(
+        fmt="%(asctime)s %(levelname)s %(location)s %(message)s",
+        datefmt="%H:%M:%S",
+    )
+)
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)8s] (%(module)s.%(funcName)s:%(lineno)d) %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+    handlers=[_handler],
 )
 logger = logging.getLogger(__name__)
 
@@ -77,6 +128,14 @@ def main(
     Fetches all descendant blocks of PAGE_TITLE and renders them as a
     formatted tree in the terminal.
     """
+    logger.debug(
+        "page_title=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, props=%r",
+        page_title,
+        local_api_port,
+        graph_name,
+        api_bearer_token,
+        props,
+    )
     api_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
         local_api_port=local_api_port,
         graph_name=graph_name,

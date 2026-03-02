@@ -1,5 +1,8 @@
 """Tests for the roam_node module."""
 
+import pytest
+from pydantic import ValidationError
+
 from roam_pub.roam_node import NodeNetwork, RoamNode, is_root
 from roam_pub.roam_types import IdObject
 
@@ -108,3 +111,65 @@ class TestIsRoot:
         child = RoamNode(uid="block0001", id=10, time=_TIME, user=_USER, parents=[IdObject(id=1)])
         network: NodeNetwork = [parent, child]
         assert is_root(child, network) is False
+
+
+class TestRoamNodeProps:
+    """Tests for the RoamNode.props field (block properties / :block/props)."""
+
+    def test_props_defaults_to_none(self) -> None:
+        """Test that props is None when not supplied."""
+        node = RoamNode(uid="block0001", id=1, time=_TIME, user=_USER)
+        assert node.props is None
+
+    def test_props_accepts_string_values(self) -> None:
+        """Test that props stores a string-valued block property map."""
+        node = RoamNode(
+            uid="block0001",
+            id=1,
+            time=_TIME,
+            user=_USER,
+            props={":ah-level": "h4"},
+        )
+        assert node.props == {":ah-level": "h4"}
+
+    def test_props_accepts_multiple_entries(self) -> None:
+        """Test that props can hold multiple block property entries."""
+        node = RoamNode(
+            uid="block0001",
+            id=1,
+            time=_TIME,
+            user=_USER,
+            props={":ah-level": "h5", ":some-other": "value"},
+        )
+        assert node.props is not None
+        assert node.props[":ah-level"] == "h5"
+        assert node.props[":some-other"] == "value"
+
+    def test_props_round_trips_through_model_validate(self) -> None:
+        """Test that props survives a model_validate round-trip from a raw dict."""
+        raw: dict[str, object] = {
+            "uid": "block0001",
+            "id": 1,
+            "time": _TIME,
+            "user": {"id": 1},
+            "props": {":ah-level": "h6"},
+        }
+        node = RoamNode.model_validate(raw)
+        assert node.props == {":ah-level": "h6"}
+
+    def test_props_none_round_trips_through_model_validate(self) -> None:
+        """Test that a missing props key in raw dict produces props=None."""
+        raw: dict[str, object] = {
+            "uid": "block0001",
+            "id": 1,
+            "time": _TIME,
+            "user": {"id": 1},
+        }
+        node = RoamNode.model_validate(raw)
+        assert node.props is None
+
+    def test_node_with_props_is_frozen(self) -> None:
+        """Test that a node with props set is immutable."""
+        node = RoamNode(uid="block0001", id=1, time=_TIME, user=_USER, props={":ah-level": "h4"})
+        with pytest.raises(Exception):
+            node.props = None  # type: ignore[misc]
