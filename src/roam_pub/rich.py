@@ -5,7 +5,7 @@ Public symbols:
 - :data:`DEFAULT_PANEL_PROPS` — the property names rendered in a panel body by default.
 - :func:`make_panel` — render a :class:`~roam_pub.roam_node.RoamNode` as a Rich
   :class:`~rich.panel.Panel`.
-- :func:`build_rich_tree` — build a list of Rich :class:`~rich.tree.Tree` instances
+- :func:`build_rich_trees` — build a list of Rich :class:`~rich.tree.Tree` instances
   from a :data:`~roam_pub.roam_node.NodeNetwork`, one per root node.
 """
 
@@ -136,7 +136,7 @@ def _populate_subtree(node: RoamNode, rich_parent: RichTree, id_map: dict[Id, Ro
             _populate_subtree(child, rich_parent.add(make_panel(child, props)), id_map, props)
 
 
-def build_rich_tree(network: NodeNetwork, props: list[str] = DEFAULT_PANEL_PROPS) -> list[RichTree]:
+def build_rich_trees(network: NodeNetwork, props: list[str] = DEFAULT_PANEL_PROPS) -> list[RichTree]:
     """Build one Rich tree per root node in *network*.
 
     Root nodes are determined by :func:`~roam_pub.roam_node.is_root` and sorted

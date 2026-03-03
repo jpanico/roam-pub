@@ -1,11 +1,25 @@
 #!/usr/bin/env python3
-"""Script to dump a Roam Research page as a Rich tree to the console.
+"""CLI tool for dumping a Roam Research page as a Rich tree to the terminal.
 
-Fetches all descendant blocks of a given page and renders them as a
-formatted tree in the terminal.
+Fetches all descendant blocks of a named page via the Roam Local API and
+renders them as a colorized :class:`~rich.tree.Tree` panel hierarchy.  Each
+block is displayed as a panel whose body lists selected
+:class:`~roam_pub.roam_node.RoamNode` fields, configurable via ``--props``
+(defaults to :data:`~roam_pub.rich.DEFAULT_PANEL_PROPS`).
 
-Example:
+Logging is colorized by level and configurable via the ``LOG_LEVEL``
+environment variable (default: ``INFO``).
+
+Public symbols:
+
+- :data:`app` — the :class:`~typer.Typer` application instance.
+- :func:`main` — the CLI entry point; registered as the ``dump-roam-page``
+  console script.
+
+Example::
+
     dump-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token
+    dump-roam-page "Test Article" -p 3333 -g SCFH -t tok --props heading,parents
 """
 
 import logging
@@ -17,7 +31,7 @@ import typer
 from rich.console import Console
 from rich.tree import Tree as RichTree
 
-from roam_pub.rich import DEFAULT_PANEL_PROPS, build_rich_tree
+from roam_pub.rich import DEFAULT_PANEL_PROPS, build_rich_trees
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
@@ -151,7 +165,7 @@ def main(
     effective_props: list[str] = (
         [p.strip() for p in props.split(",")] if props is not None else list(DEFAULT_PANEL_PROPS)
     )
-    trees: list[RichTree] = build_rich_tree(nodes, effective_props)
+    trees: list[RichTree] = build_rich_trees(nodes, effective_props)
 
     console: Console = Console()
     for tree in trees:
