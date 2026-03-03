@@ -62,6 +62,7 @@ target-version = "py314"
 select = [
     "D",     # pydocstyle
     "E501",  # line too long
+    "F401",  # unused imports
     "UP",    # pyupgrade — enforce modern Python idioms
 ]
 
