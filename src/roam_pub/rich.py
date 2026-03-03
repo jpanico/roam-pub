@@ -16,7 +16,7 @@ from rich.text import Text
 from rich.tree import Tree as RichTree
 
 from roam_pub.roam_node import NodeTree, NodeTreeDFSIterator, RoamNode
-from roam_pub.roam_primitives import Id
+from roam_pub.roam_primitives import Id, IMAGE_LINK_RE
 
 logger = logging.getLogger(__name__)
 
@@ -86,8 +86,15 @@ def make_panel(node: RoamNode, props: list[str] = DEFAULT_PANEL_PROPS) -> Panel:
     """Render *node* as a Rich Panel for display in a terminal tree.
 
     The panel title always shows the block string or page title with the node
-    ``id`` in parentheses.  An ``H{n}:`` prefix is prepended only when
-    ``"heading"`` is included in *props* and the node has a heading level set.
+    ``id`` in parentheses.  The title text is determined as follows:
+
+    - If the block string contains a Cloud Firestore image link matching
+      :data:`~roam_pub.roam_primitives.IMAGE_LINK_RE`, the title reads
+      ``IMAGE [<alt>](FIRESTORE_URL)``.
+    - Otherwise, if ``"heading"`` is in *props* and the node has a heading level,
+      an ``H{n}:`` prefix is prepended.
+    - Otherwise the raw block string or page title is used as-is.
+
     The panel body shows the remaining properties named in *props* as a single
     formatted line of ``name=value`` pairs; ``heading`` is excluded from the body
     because it is represented by the title prefix.
@@ -104,9 +111,12 @@ def make_panel(node: RoamNode, props: list[str] = DEFAULT_PANEL_PROPS) -> Panel:
     """
     logger.debug("node=%r, props=%r", node, props)
     text: str = node.string or node.title or f"(uid={node.uid})"
-    if node.heading is not None and "heading" in props:
-        text = f"H{node.heading}: {text}"
-    title: str = f"{text} ({node.id})"
+    if node.string is not None and (m := IMAGE_LINK_RE.search(node.string)):
+        title: str = f"IMAGE [{m.group('alt')}](FIRESTORE_URL) ({node.id})"
+    elif node.heading is not None and "heading" in props:
+        title = f"H{node.heading}: {text} ({node.id})"
+    else:
+        title = f"{text} ({node.id})"
     content: str = "  ".join(_format_node_prop(node, p) for p in props if p != "heading")
     return Panel(Text(content), title=title, expand=False)
 
