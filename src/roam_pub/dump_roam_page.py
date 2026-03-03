@@ -7,7 +7,7 @@ block is displayed as a panel whose body lists selected
 :class:`~roam_pub.roam_node.RoamNode` fields, configurable via ``--node-props``
 (defaults to :data:`~roam_pub.rich.DEFAULT_PANEL_PROPS`).
 
-Logging is colorized by level via :mod:`roam_pub.roam_logging` and
+Logging is colorized by level via :mod:`roam_pub.logging_config` and
 configurable via the ``LOG_LEVEL`` environment variable (default: ``INFO``).
 
 Public symbols:
@@ -33,7 +33,7 @@ from rich.tree import Tree as RichTree
 from roam_pub.rich import DEFAULT_PANEL_PROPS, build_rich_node_tree, build_rich_vertex_tree
 from roam_pub.roam_graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
-from roam_pub.roam_logging import configure_logging
+from roam_pub.logging_config import configure_logging
 from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
 from roam_pub.roam_transcribe import transcribe

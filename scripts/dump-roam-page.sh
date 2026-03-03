@@ -1,7 +1,10 @@
 #!/bin/bash
 # Wrapper script to run dump_roam_page.py with the correct Python environment
 #
-# Usage: ./dump-roam-page.sh <page_title> [--port <port>] [--graph <graph>] [--token <token>] [--props <props>]
+# Usage: ./dump-roam-page.sh <page_title> [--port <port>] [--graph <graph>] [--token <token>]
+#                            [--node-props <props>] [--mode <v|n|vn>]
+#
+# --mode controls which tree(s) are printed: v=vertex (default), n=node, vn=both
 #
 # Environment variables (may be set instead of CLI flags):
 #   ROAM_LOCAL_API_PORT  — port for Roam Local API

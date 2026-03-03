@@ -16,6 +16,7 @@
       "Bash(port search:*)",
       "Bash(sudo port install:*)",
       "Bash(ls:*)",
+      "WebSearch",
       "WebFetch(domain:roamresearch.com)",
       "WebFetch(domain:www.postman.com)",
       "WebFetch(domain:www.npmjs.com)",
@@ -98,7 +99,10 @@
       "Bash(git mv bundle-roam-md.sh scripts/bundle-roam-md.sh)",
       "Bash(python3 -c \":*)",
       "Bash(python3 -c \"import json; json.load\\(open\\(''/Users/jpanico/Documents/github/roam-pub/tests/fixtures/json/image_node.json''\\)\\); print\\(''valid''\\)\")",
-      "Bash(xargs sed -i '' 's/roam_pub\\\\.roam_types/roam_pub.roam_primitives/g; s/roam_types\\\\.py/roam_primitives.py/g')"
+      "Bash(xargs sed -i '' 's/roam_pub\\\\.roam_types/roam_pub.roam_primitives/g; s/roam_types\\\\.py/roam_primitives.py/g')",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:marph91.github.io)",
+      "WebFetch(domain:roamstack.com)"
     ]
   }
 }

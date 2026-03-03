@@ -13,7 +13,7 @@ from typing import Annotated
 
 import typer
 
-from roam_pub.roam_logging import configure_logging
+from roam_pub.logging_config import configure_logging
 from roam_pub.roam_md_bundle import bundle_md_file
 
 configure_logging()

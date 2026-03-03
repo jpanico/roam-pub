@@ -124,11 +124,11 @@ def make_node_panel(node: RoamNode, props: list[str] = DEFAULT_PANEL_PROPS) -> P
     logger.debug("node=%r, props=%r", node, props)
     text: str = node.string or node.title or f"(uid={node.uid})"
     if node.string is not None and (m := IMAGE_LINK_RE.search(node.string)):
-        title: str = f"IMAGE [{m.group('alt')}](<firestore_url>) ({node.id})"
+        title: str = f"[bold #00aa00]IMAGE [{m.group('alt')}](<firestore_url>) ({node.id})[/bold #00aa00]"
     elif node.heading is not None and "heading" in props:
-        title = f"H{node.heading}: {text} ({node.id})"
+        title = f"[bold #00aa00]H{node.heading}: {text} ({node.id})[/bold #00aa00]"
     else:
-        title = f"{text} ({node.id})"
+        title = f"[bold #00aa00]{text} ({node.id})[/bold #00aa00]"
     content: str = "  ".join(_format_node_prop(node, p) for p in props if p != "heading")
     return Panel(Text(content), title=title, expand=False)
 
@@ -189,7 +189,7 @@ def make_vertex_panel(vertex: Vertex) -> Panel:
         text = vertex.text
     else:
         text = f"IMAGE [{vertex.alt_text or ''}](<firestore_url>)"
-    title: str = f"{text} ({vertex.uid})"
+    title: str = f"[bold #00aa00]{text} ({vertex.uid})[/bold #00aa00]"
     children_str: str = f"[{', '.join(vertex.children)}]" if vertex.children else "None"
     refs_str: str = f"[{', '.join(vertex.refs)}]" if vertex.refs else "None"
     content: str = f"type={vertex.vertex_type.value}  children={children_str}  refs={refs_str}"
