@@ -8,13 +8,14 @@ import yaml
 from pydantic import ValidationError
 
 from roam_pub.roam_graph import Vertex, VertexType
-from roam_pub.roam_node import RoamNode
+from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_transcribe import (
     is_image_node,
     to_heading_vertex,
     to_image_vertex,
     to_page_vertex,
     to_text_content_vertex,
+    transcribe,
     transcribe_node,
     vertex_type,
 )
@@ -544,3 +545,22 @@ class TestTranscribeArticleFixture:
         expected_by_uid = {d["uid"]: d for d in (_as_dict(v) for v in expected_vertices)}
 
         assert actual_by_uid == expected_by_uid
+
+    def test_article_node_tree_transcribes_to_vertex_tree(self) -> None:
+        """Transcribing the Test Article NodeTree via transcribe() produces the expected VertexTree."""
+        raw_nodes: list[dict[str, object]] = yaml.safe_load(
+            (_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text()
+        )
+        node_tree = NodeTree(network=[RoamNode.model_validate(r) for r in raw_nodes])
+
+        vertex_tree = transcribe(node_tree)
+
+        raw_vertices: list[dict[str, object]] = yaml.safe_load(
+            (_FIXTURES_YAML_DIR / "test_article_vertices.yaml").read_text()
+        )
+        expected: list[Vertex] = [Vertex.model_validate(r) for r in raw_vertices]
+
+        def _serialise(v: Vertex) -> dict[str, object]:
+            return v.model_dump(mode="json", exclude_none=True)
+
+        assert [_serialise(v) for v in vertex_tree.vertices] == [_serialise(v) for v in expected]

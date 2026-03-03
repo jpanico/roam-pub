@@ -16,6 +16,8 @@ Public symbols:
   :class:`~roam_pub.roam_graph.Vertex` from a plain text block node.
 - :func:`transcribe_node` — transcribe a :class:`~roam_pub.roam_node.RoamNode` into
   a normalized :class:`~roam_pub.roam_graph.Vertex`.
+- :func:`transcribe` — transcribe all nodes in a :class:`~roam_pub.roam_node.NodeTree`
+  into a :class:`~roam_pub.roam_graph.VertexTree`.
 """
 
 import logging
@@ -26,8 +28,8 @@ from urllib.parse import unquote, urlparse
 from pydantic import TypeAdapter, validate_call
 
 from roam_pub.roam_asset import FIRESTORE_IMAGE_RE
-from roam_pub.roam_graph import NormalChildren, NormalRefs, Vertex, VertexType
-from roam_pub.roam_node import RoamNode
+from roam_pub.roam_graph import Vertex, VertexChildren, VertexRefs, VertexTree, VertexType
+from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_types import HeadingLevel, Id, Url
 
 logger = logging.getLogger(__name__)
@@ -47,7 +49,7 @@ The URL must begin with ``http://`` or ``https://``.
 """
 
 
-def _resolve_children(node: RoamNode, id_map: dict[Id, RoamNode]) -> NormalChildren | None:
+def _resolve_children(node: RoamNode, id_map: dict[Id, RoamNode]) -> VertexChildren | None:
     """Return an ordered list of child UIDs for *node*, or ``None`` if childless.
 
     Children are sorted by :attr:`~roam_pub.roam_node.RoamNode.order`.  Stubs
@@ -67,11 +69,11 @@ def _resolve_children(node: RoamNode, id_map: dict[Id, RoamNode]) -> NormalChild
         [id_map[c.id] for c in node.children if c.id in id_map],
         key=lambda n: n.order if n.order is not None else 0,
     )
-    uids: NormalChildren = [n.uid for n in resolved]
+    uids: VertexChildren = [n.uid for n in resolved]
     return uids if uids else None
 
 
-def _resolve_refs(node: RoamNode, id_map: dict[Id, RoamNode]) -> NormalRefs | None:
+def _resolve_refs(node: RoamNode, id_map: dict[Id, RoamNode]) -> VertexRefs | None:
     """Return a list of referenced UIDs for *node*, or ``None`` if there are no refs.
 
     Stubs whose id is absent from *id_map* are silently dropped.
@@ -86,7 +88,7 @@ def _resolve_refs(node: RoamNode, id_map: dict[Id, RoamNode]) -> NormalRefs | No
     """
     if not node.refs:
         return None
-    resolved: NormalRefs = [id_map[r.id].uid for r in node.refs if r.id in id_map]
+    resolved: VertexRefs = [id_map[r.id].uid for r in node.refs if r.id in id_map]
     return resolved if resolved else None
 
 
@@ -387,3 +389,23 @@ def transcribe_node(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
             return to_heading_vertex(node, id_map)
         case VertexType.ROAM_TEXT_CONTENT:
             return to_text_content_vertex(node, id_map)
+
+
+def transcribe(node_tree: NodeTree) -> VertexTree:
+    """Transcribe every node in *node_tree* into a :class:`~roam_pub.roam_graph.VertexTree`.
+
+    Builds an id-map from *node_tree.network*, then applies :func:`transcribe_node`
+    to each node in insertion order.
+
+    Args:
+        node_tree: A validated tree of raw Roam nodes.
+
+    Returns:
+        A :class:`~roam_pub.roam_graph.VertexTree` containing one
+        :class:`~roam_pub.roam_graph.Vertex` per node in *node_tree.network*.
+
+    Raises:
+        ValueError: If any node has neither a ``title`` nor a ``string`` field set.
+    """
+    id_map: dict[Id, RoamNode] = {n.id: n for n in node_tree.network}
+    return VertexTree(vertices=[transcribe_node(n, id_map) for n in node_tree.network])

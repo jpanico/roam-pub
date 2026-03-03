@@ -1,11 +1,37 @@
 """Roam Research normalized graph vertex model.
 
+A :class:`Vertex` is the normalized (transcribed) form of a single
+:class:`~roam_pub.roam_node.RoamNode`.  A :class:`VertexTree` is the normalized
+form of a :class:`~roam_pub.roam_node.NodeTree`.
+
+Normalization (transcription) means:
+
+- Datomic-internal numeric entity ids (:attr:`~roam_pub.roam_node.RoamNode.id`) are
+  eliminated.
+- Raw :class:`~roam_pub.roam_types.IdObject` stubs in ``children`` and ``refs`` are
+  resolved to stable ``:block/uid`` strings.
+- The raw ``string`` / ``title`` field distinction is collapsed into a single ``text``
+  field.
+- Each node is classified into a :class:`VertexType`.
+- The result is self-contained and portable — no Datomic dependencies remain.
+
+Normalization is performed by :func:`~roam_pub.roam_transcribe.transcribe` (for a full
+:class:`~roam_pub.roam_node.NodeTree`) or
+:func:`~roam_pub.roam_transcribe.transcribe_node` (for a single
+:class:`~roam_pub.roam_node.RoamNode`).
+
 Public symbols:
 
-- :data:`NormalChildren` — ordered list of child block UIDs after normalization.
-- :data:`NormalRefs` — list of referenced page/block UIDs after normalization.
-- :class:`VertexType` — string enum classifying each vertex in the output graph.
-- :class:`Vertex` — normalized, portable representation of a single graph vertex.
+- :data:`VertexChildren` — normalized form of
+  :attr:`~roam_pub.roam_node.RoamNode.children`: ordered child UIDs.
+- :data:`VertexRefs` — normalized form of :attr:`~roam_pub.roam_node.RoamNode.refs`:
+  referenced UIDs.
+- :class:`VertexType` — string enum classifying each :class:`Vertex` by the shape of
+  its source :class:`~roam_pub.roam_node.RoamNode`.
+- :class:`Vertex` — normalized (transcribed) form of a single
+  :class:`~roam_pub.roam_node.RoamNode`.
+- :class:`VertexTree` — normalized (transcribed) form of a
+  :class:`~roam_pub.roam_node.NodeTree`; a portable tree of :class:`Vertex` instances.
 """
 
 from enum import StrEnum
@@ -14,38 +40,38 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from roam_pub.roam_types import HeadingLevel, MediaType, Uid, Url
 
-type NormalChildren = list[Uid]
-"""Ordered list of child block UIDs after normalization.
+type VertexChildren = list[Uid]
+"""Normalized form of :attr:`~roam_pub.roam_node.RoamNode.children`.
 
 Raw :class:`~roam_pub.roam_types.IdObject` stubs are resolved to stable ``:block/uid``
-strings and sorted by ``:block/order`` during the normalization pass.
+strings and sorted by ``:block/order`` during transcription.
 """
 
-type NormalRefs = list[Uid]
-"""List of referenced page/block UIDs after normalization.
+type VertexRefs = list[Uid]
+"""Normalized form of :attr:`~roam_pub.roam_node.RoamNode.refs`.
 
 Raw :class:`~roam_pub.roam_types.IdObject` stubs are resolved to stable ``:block/uid``
-strings during the normalization pass.
+strings during transcription.
 """
 
 
 class VertexType(StrEnum):
-    """Type identifiers for the individual elements (vertices) in the normalized output graph.
+    """Classification assigned to each :class:`Vertex` during transcription.
 
-    Every vertex in the output graph has exactly one VertexType.  The values
-    are string-valued so they serialize cleanly to/from JSON without extra
-    conversion.
+    Every :class:`~roam_pub.roam_node.RoamNode` is classified into exactly one
+    ``VertexType`` based on the shape of its raw fields.  The values are
+    string-valued so they serialize cleanly to/from JSON without extra conversion.
 
     Values:
-        ROAM_PAGE: 1-1 with a Roam ``Page`` type node (:node/title present,
-            no :block/string).
-        ROAM_TEXT_CONTENT: 1-1 with a Roam ``Block`` type node that has no
+        ROAM_PAGE: Normalized form of a Roam *Page* node — ``:node/title`` is
+            present; ``:block/string`` is absent.
+        ROAM_TEXT_CONTENT: Normalized form of a Roam *Block* node that has no
             ``heading`` property — i.e. normal body text.
-        ROAM_HEADING: 1-1 with a Roam ``Block`` type node that has a
+        ROAM_HEADING: Normalized form of a Roam *Block* node that carries a
             ``heading`` property (value 1, 2, or 3).
-        ROAM_IMAGE: A block that references a file uploaded to and managed by Roam
-            (Cloud Firestore-hosted); these blocks have a Cloud Firestore URL
-            embedded in their ``:block/string``.
+        ROAM_IMAGE: Normalized form of a Roam *Block* node whose
+            ``:block/string`` embeds a Cloud Firestore URL pointing to a
+            Roam-managed image upload.
     """
 
     ROAM_PAGE = "roam/page"
@@ -55,11 +81,14 @@ class VertexType(StrEnum):
 
 
 class Vertex(BaseModel):
-    """Normalized representation of a Roam graph element.
+    """Normalized (transcribed) form of a single :class:`~roam_pub.roam_node.RoamNode`.
 
-    After normalization, all internal Datomic ids are eliminated, raw IdObject
-    stubs are resolved to stable UIDs, and page-title references in block text
-    are replaced with UIDs. The result is a clean, portable graph vertex.
+    Transcription eliminates the Datomic-internal numeric
+    :attr:`~roam_pub.roam_node.RoamNode.id`, resolves raw
+    :class:`~roam_pub.roam_types.IdObject` stubs in ``children`` and ``refs`` to
+    stable ``:block/uid`` strings, and collapses the ``string`` / ``title`` field
+    distinction into a single :attr:`text` field.  The result is a clean,
+    self-contained, portable graph vertex with no Datomic dependencies.
 
     Attributes:
         uid: Nine-character stable identifier. Required.
@@ -95,11 +124,31 @@ class Vertex(BaseModel):
     heading: HeadingLevel | None = Field(
         default=None, description="HeadingLevel; present only on ROAM_HEADING vertices"
     )
-    children: NormalChildren | None = Field(
+    children: VertexChildren | None = Field(
         default=None, description="Ordered child UIDs resolved from raw IdObject stubs"
     )
-    refs: NormalRefs | None = Field(default=None, description="Referenced UIDs resolved from raw IdObject stubs")
+    refs: VertexRefs | None = Field(default=None, description="Referenced UIDs resolved from raw IdObject stubs")
     source: Url | None = Field(
         default=None, description="Cloud Firestore storage URL; present only on ROAM_IMAGE vertices"
     )
     file_name: str | None = Field(default=None, description="Original filename; present only on ROAM_IMAGE vertices")
+
+
+class VertexTree(BaseModel):
+    """Normalized (transcribed) form of a :class:`~roam_pub.roam_node.NodeTree`.
+
+    Produced by :func:`~roam_pub.roam_transcribe.transcribe`, which applies
+    :func:`~roam_pub.roam_transcribe.transcribe_node` to every node in the source
+    :class:`~roam_pub.roam_node.NodeTree` and collects the results here in the
+    same insertion order.  The resulting collection is guaranteed to have exactly
+    one :class:`Vertex` per source :class:`~roam_pub.roam_node.RoamNode` and
+    inherits the acyclic-tree structure of its origin.
+
+    Attributes:
+        vertices: Transcribed vertices, one per source
+            :class:`~roam_pub.roam_node.RoamNode`, in insertion order.
+    """
+
+    model_config = ConfigDict(frozen=True, populate_by_name=True)
+
+    vertices: list[Vertex] = Field(..., description="Transcribed vertices, one per source RoamNode.")
