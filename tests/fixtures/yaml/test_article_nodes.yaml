@@ -1,12 +1,17 @@
 # YAML fixture for the 'Test Article' NodeNetwork.
 # Captured from a live FetchRoamNodes.fetch_by_page_title call against the
-# SCFH graph on 2026-03-02. Serialised with model_dump() and yaml.dump(
+# SCFH graph on 2026-03-04. Serialised with model_dump() and yaml.dump(
 #   default_flow_style=False, allow_unicode=True, sort_keys=False).
+#
+# Transient fields (time, user, open, sidebar, lookup, seen_by) are excluded
+# from live-test comparisons and are set to stub values here (time: 0,
+# user: {id: 0}); the nullable ones (open, sidebar, lookup, seen_by) are
+# omitted entirely so they default to None on model_validate.
 - uid: yFUau9Cpg
   id: 4025
-  time: 1771515468425
+  time: 0
   user:
-    id: 3
+    id: 0
   string: Section 2.1.1
   order: 0
   heading: null
@@ -15,7 +20,6 @@
   refs: null
   page:
     id: 3327
-  open: true
   parents:
   - id: 3327
   - id: 3329
@@ -23,15 +27,12 @@
   props:
     ah-level: h4
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: mPCzedeKx
   id: 3336
-  time: 1770569707883
+  time: 0
   user:
-    id: 3
+    id: 0
   string: '![A flower](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94)'
   order: 0
   heading: null
@@ -39,7 +40,6 @@
   refs: null
   page:
     id: 3327
-  open: false
   parents:
   - id: 3327
   - id: 3328
@@ -51,15 +51,12 @@
       : width: 347
         height: null
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: FL32hVyCv
   id: 4029
-  time: 1771538823824
+  time: 0
   user:
-    id: 3
+    id: 0
   string: 'AI assistant (Claude Opus 4.6): '
   order: 1
   heading: null
@@ -67,21 +64,17 @@
   refs: null
   page:
     id: 3327
-  open: false
   parents:
   - id: 3327
   - id: 3328
   props: null
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: 0EgPyHSZi
   id: 3328
-  time: 1770568919008
+  time: 0
   user:
-    id: 3
+    id: 0
   string: Section 1
   order: 0
   heading: 2
@@ -91,20 +84,16 @@
   refs: null
   page:
     id: 3327
-  open: true
   parents:
   - id: 3327
   props: null
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: 40bvW14UU
   id: 3330
-  time: 1770568926764
+  time: 0
   user:
-    id: 3
+    id: 0
   string: Section 3
   order: 2
   heading: 2
@@ -113,20 +102,16 @@
   refs: null
   page:
     id: 3327
-  open: true
   parents:
   - id: 3327
   props: null
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: TaN67WqnA
   id: 3334
-  time: 1771512875819
+  time: 0
   user:
-    id: 3
+    id: 0
   string: illustration 1.1
   order: 0
   heading: null
@@ -135,7 +120,6 @@
   refs: null
   page:
     id: 3327
-  open: false
   parents:
   - id: 3327
   - id: 3328
@@ -143,15 +127,12 @@
   props:
     ah-level: h4
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: wdMgyBiP9
   id: 3329
-  time: 1770568922821
+  time: 0
   user:
-    id: 3
+    id: 0
   string: Section 2
   order: 1
   heading: 2
@@ -161,20 +142,16 @@
   refs: null
   page:
     id: 3327
-  open: true
   parents:
   - id: 3327
   props: null
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: 3BX-iWc-p
   id: 3331
-  time: 1770568958676
+  time: 0
   user:
-    id: 3
+    id: 0
   string: Section 1.1
   order: 0
   heading: 3
@@ -183,21 +160,17 @@
   refs: null
   page:
     id: 3327
-  open: false
   parents:
   - id: 3327
   - id: 3328
   props: null
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: bxkcECGwN
   id: 4028
-  time: 1771536625311
+  time: 0
   user:
-    id: 3
+    id: 0
   string: Section 2.1.1.1
   order: 0
   heading: null
@@ -205,7 +178,6 @@
   refs: null
   page:
     id: 3327
-  open: false
   parents:
   - id: 3327
   - id: 3329
@@ -214,15 +186,12 @@
   props:
     ah-level: h5
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: drtANJYTg
   id: 3332
-  time: 1770568965850
+  time: 0
   user:
-    id: 3
+    id: 0
   string: Section 2.1
   order: 0
   heading: 3
@@ -231,43 +200,35 @@
   refs: null
   page:
     id: 3327
-  open: true
   parents:
   - id: 3327
   - id: 3329
   props: null
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: 5f1ahOFdp
   id: 4026
-  time: 1771513571056
+  time: 0
   user:
-    id: 3
-  string: Section 2.1.2
+    id: 0
+  string: Section 2.2
   order: 1
   heading: null
   children: null
   refs: null
   page:
     id: 3327
-  open: false
   parents:
   - id: 3327
   - id: 3329
   props: null
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: 6olpFWiw1
   id: 3327
-  time: 1770568893569
+  time: 0
   user:
-    id: 3
+    id: 0
   string: null
   order: null
   heading: null
@@ -277,19 +238,15 @@
   - id: 3330
   refs: null
   page: null
-  open: null
   parents: null
   props: null
   title: Test Article
-  sidebar: 18
   attrs: null
-  lookup: null
-  seen_by: null
 - uid: JW5PswS6v
   id: 3333
-  time: 1770568971504
+  time: 0
   user:
-    id: 3
+    id: 0
   string: Section 3.1
   order: 0
   heading: 3
@@ -297,13 +254,9 @@
   refs: null
   page:
     id: 3327
-  open: false
   parents:
   - id: 3327
   - id: 3330
   props: null
   title: null
-  sidebar: null
   attrs: null
-  lookup: null
-  seen_by: null

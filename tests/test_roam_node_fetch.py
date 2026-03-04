@@ -19,6 +19,15 @@ _FIXTURES_YAML_DIR = pathlib.Path(__file__).parent / "fixtures" / "yaml"
 
 logger = logging.getLogger(__name__)
 
+# Fields excluded from live-test comparisons because they change with normal
+# Roam activity and are not indicative of structural correctness.
+_TRANSIENT_NODE_FIELDS: set[str] = {"time", "user", "open", "sidebar", "lookup", "seen_by"}
+
+
+def _stable_node_dict(node: RoamNode) -> dict[str, object]:
+    """Return a serialised *node* with all transient fields stripped."""
+    return node.model_dump(exclude=_TRANSIENT_NODE_FIELDS)
+
 
 @pytest.fixture
 def api_endpoint() -> ApiEndpoint:
@@ -339,7 +348,12 @@ class TestFetchRoamNodesFetch:
     @pytest.mark.live
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
     def test_fetch_testarticle(self) -> None:
-        """Live test: fetch all descendant blocks of a page and compare with fixture."""
+        """Live test: fetch all descendant blocks of a page and compare with fixture.
+
+        Transient fields (``time``, ``user``, ``open``, ``sidebar``, ``lookup``,
+        ``seen_by``) are excluded from the comparison because they change with
+        normal Roam activity and are not meaningful for structural correctness.
+        """
         live_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
             local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
             graph_name=os.environ["ROAM_GRAPH_NAME"],
@@ -355,4 +369,6 @@ class TestFetchRoamNodesFetch:
             for raw in yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
         ]
 
-        assert sorted(nodes, key=lambda n: n.uid) == sorted(fixture_nodes, key=lambda n: n.uid)
+        assert [_stable_node_dict(n) for n in sorted(nodes, key=lambda n: n.uid)] == [
+            _stable_node_dict(n) for n in sorted(fixture_nodes, key=lambda n: n.uid)
+        ]
