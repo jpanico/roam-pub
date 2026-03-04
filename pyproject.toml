@@ -28,6 +28,7 @@ dev = [
 [project.scripts]
 bundle-roam-md = "roam_pub.bundle_roam_md:app"
 dump-roam-page = "roam_pub.dump_roam_page:app"
+export-roam-page = "roam_pub.export_roam_page:app"
 
 [tool.hatch.envs.default.scripts]
 check = [

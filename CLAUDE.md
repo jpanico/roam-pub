@@ -14,6 +14,7 @@ pip install -e ".[dev]"
 ```bash
 bundle-roam-md -m <file> -p <port> -g <graph> -t <token> -o <output_dir>
 dump-roam-page "Page Title" -p <port> -g <graph> -t <token> [--mode v|n|vn] [--node-props <props>]
+export-roam-page "Page Title" -p <port> -g <graph> -t <token> -o <output_dir>
 
 # Run the full check pipeline (format + lint + type check + tests) in one shot:
 hatch run check
@@ -32,9 +33,12 @@ pytest                            # run tests
   - **CLI entry points**
     - `bundle_roam_md.py` — bundles a Roam export + Firestore images into `.mdbundle`
     - `dump_roam_page.py` — dumps a Roam page as a Rich tree to the terminal (`--mode v|n|vn`)
+    - `export_roam_page.py` — exports a Roam page to a CommonMark `.md` file (`export-roam-page`)
   - **Core logic**
     - `roam_md_bundle.py` — core bundling logic
-    - `roam_transcribe.py` — transcribes `NodeTree` → `VertexTree` (normalized graph)
+    - `roam_md_normalize.py` — normalizes Roam-flavored Markdown strings to CommonMark
+    - `roam_transcribe.py` — transcribes `NodeTree` → `VertexTree`; applies `normalize()` to all text fields
+    - `roam_render_md.py` — renders a `VertexTree` to a CommonMark document string
     - `rich.py` — Rich panel/tree rendering for `NodeTree` and `VertexTree`
     - `validation.py` — generic accumulator-pipeline validation framework
   - **Model layer**
@@ -59,6 +63,7 @@ pytest                            # run tests
 - Docstrings: PEP 257 format (pydocstringformatter), Google style convention (Ruff)
 - Tests: pytest, files named `test_*.py`
 - **Strong typing**: all Python code must use type annotations throughout; no `Any` types; enforced by pyright in strict mode
+- **Bash tool calls**: never chain multiple different commands with `&&` in a single Bash tool call; use separate Bash tool calls instead. Exception: chaining is fine when all sub-commands share the same base command (e.g., `git add . && git commit ... && git push`).
 
 ## Modern Python Requirements (Python 3.14)
 All code written or modified by Claude MUST follow these conventions — no exceptions:
@@ -74,8 +79,9 @@ All code written or modified by Claude MUST follow these conventions — no exce
 ## Reference Docs
 - `docs/roam-md.md` — Roam flavored Markdown vs. CommonMark differences (relevant to normalization work)
 
-## Environment Variables (referenced by `bundle_roam_md.py` CLI args)
-- `ROAM_LOCAL_API_PORT` — port for Roam Local API
-- `ROAM_GRAPH_NAME` — Roam graph name
-- `ROAM_API_TOKEN` — bearer token for auth
-- `ROAM_CACHE_DIR` — directory for caching downloaded Cloud Firestore assets
+## Environment Variables
+- `ROAM_LOCAL_API_PORT` — port for Roam Local API (all CLI tools)
+- `ROAM_GRAPH_NAME` — Roam graph name (all CLI tools)
+- `ROAM_API_TOKEN` — bearer token for auth (all CLI tools)
+- `ROAM_EXPORT_DIR` — output directory for `export-roam-page`
+- `ROAM_CACHE_DIR` — directory for caching downloaded Cloud Firestore assets (`bundle-roam-md`)

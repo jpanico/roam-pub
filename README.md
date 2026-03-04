@@ -134,39 +134,99 @@ roam-pub/
 ├── src/
 │   └── roam_pub/                  # Main package
 │       ├── __init__.py
-│       ├── bundle_roam_md.py      # CLI entry point (Typer app)
+│       ├── bundle_roam_md.py      # CLI: bundle a Roam export + images into .mdbundle
+│       ├── dump_roam_page.py      # CLI: dump a Roam page as a Rich tree to the terminal
+│       ├── export_roam_page.py    # CLI: export a Roam page to a CommonMark .md file
 │       ├── roam_md_bundle.py      # Core bundling logic
-│       ├── roam_local_api.py      # ApiEndpointURL — Roam Local API endpoint model
-│       ├── roam_asset.py          # Cloud Firestore asset fetching
-│       ├── roam_model.py          # Pydantic data model + FetchRoamSchema
-│       ├── roam_page.py           # FetchRoamPage — Datalog page queries
-│       └── roam_transcribe.py     # (in progress)
+│       ├── roam_md_normalize.py   # Normalize Roam-flavored Markdown to CommonMark
+│       ├── roam_transcribe.py     # Transcribe NodeTree → VertexTree (applies normalize())
+│       ├── roam_render_md.py      # Render VertexTree → CommonMark document string
+│       ├── rich.py                # Rich panel/tree rendering for NodeTree and VertexTree
+│       ├── validation.py          # Generic accumulator-pipeline validation framework
+│       ├── roam_primitives.py     # Foundational type aliases, IMAGE_LINK_RE (dep root)
+│       ├── roam_node.py           # RoamNode, NodeTree, NodeTreeDFSIterator
+│       ├── roam_graph.py          # Vertex union, VertexTree, VertexTreeDFSIterator
+│       ├── roam_schema.py         # Datomic schema model types (RoamNamespace, etc.)
+│       ├── roam_asset.py          # Cloud Firestore asset model
+│       ├── roam_local_api.py      # ApiEndpoint model for the Roam Local API
+│       ├── roam_node_fetch.py     # Fetch RoamNode records via Local API
+│       ├── roam_schema_fetch.py   # Fetch Datomic schema via Local API
+│       ├── roam_asset_fetch.py    # Fetch Firestore assets via Local API
+│       └── logging_config.py      # Colorized logging; reads LOG_LEVEL env var
 ├── tests/                         # pytest test suite
-│   ├── fixtures/                  # Sample markdown, images, JSON
+│   ├── fixtures/                  # Sample markdown, images, JSON, YAML
 │   ├── test_bundle_roam_md_cli.py
-│   ├── test_roam_asset.py
+│   ├── test_roam_asset_fetch.py
+│   ├── test_roam_graph.py
+│   ├── test_roam_local_api.py
 │   ├── test_roam_md_bundle.py
-│   ├── test_roam_model.py
-│   ├── test_roam_page.py
+│   ├── test_roam_md_normalize.py
+│   ├── test_roam_node.py
+│   ├── test_roam_node_fetch.py
+│   ├── test_roam_render_md.py
+│   ├── test_roam_schema_fetch.py
 │   └── test_roam_transcribe.py
 ├── scripts/
+│   ├── bundle-roam-md.sh           # Shell wrapper for bundle-roam-md
+│   ├── dump-roam-page.sh           # Shell wrapper for dump-roam-page
 │   ├── setup-mdbundle-handler.sh   # Setup .mdbundle auto-open in Typora
 │   └── refresh-mdbundle-folders.sh # Refresh existing .mdbundle folders
 ├── docs/
 │   ├── MDBUNDLE_SETUP.md           # macOS .mdbundle integration guide
 │   ├── roam-local-api.md           # Roam Local API (JSON over HTTP) reference
+│   ├── roam-md.md                  # Roam-flavored Markdown vs. CommonMark differences
 │   ├── roam-querying.md            # Datalog query language and query reference
 │   ├── roam-schema.md              # Full Roam attribute schema from a live graph
-│   ├── roam_database.png           # Datomic/DataScript datom model diagram
-│   └── test_article_children.png   # Example page screenshot used in docs
-├── bundle-roam-md.sh               # Shell wrapper for direct execution
+│   └── roam_database.png           # Datomic/DataScript datom model diagram
 ├── pyproject.toml                  # Project configuration
 └── README.md
 ```
 
 ## Usage
 
-### Running the Bundle Script
+The package provides three command-line utilities.
+
+### `export-roam-page` — Export a Roam page to CommonMark
+
+Fetches a named Roam page via the Local API, normalizes it, and writes a CommonMark `.md` file to the output directory.
+
+```bash
+export-roam-page "My Page" -p <port> -g <graph> -t <token> -o <output_dir>
+```
+
+Example:
+```bash
+export-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token -o ~/docs
+```
+
+Supported environment variables (same as `bundle-roam-md`):
+```bash
+export ROAM_LOCAL_API_PORT=3333
+export ROAM_GRAPH_NAME=SCFH
+export ROAM_API_TOKEN=your-bearer-token
+
+export-roam-page "Test Article" -o ~/docs
+```
+
+### `dump-roam-page` — Inspect a Roam page as a Rich tree
+
+Fetches a named Roam page and renders it as a colorized tree in the terminal. Useful for inspecting the raw node structure or the normalized vertex structure.
+
+```bash
+dump-roam-page "My Page" -p <port> -g <graph> -t <token> [--mode v|n|vn] [--node-props <props>]
+```
+
+- `--mode v` (default) — vertex tree only
+- `--mode n` — raw node tree only
+- `--mode vn` — both trees
+- `--node-props heading,parents` — select which `RoamNode` fields appear in each panel
+
+Example:
+```bash
+dump-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token --mode vn
+```
+
+### `bundle-roam-md` — Bundle a Roam markdown export with its images
 
 The package provides the `bundle-roam-md` command-line utility for bundling Roam Research markdown files with their Cloud Firestore-hosted images.
 
@@ -281,6 +341,7 @@ See [docs/MDBUNDLE_SETUP.md](docs/MDBUNDLE_SETUP.md) for detailed instructions a
 ## Documentation
 
 - [docs/roam-local-api.md](docs/roam-local-api.md) — Roam Local API reference (JSON over HTTP)
+- [docs/roam-md.md](docs/roam-md.md) — Roam-flavored Markdown vs. CommonMark differences
 - [docs/roam-querying.md](docs/roam-querying.md) — Datalog query language, query structure, and all queries used in this project
 - [docs/roam-schema.md](docs/roam-schema.md) — Full Roam attribute schema retrieved from a live graph
 - [docs/MDBUNDLE_SETUP.md](docs/MDBUNDLE_SETUP.md) — macOS `.mdbundle` integration guide
