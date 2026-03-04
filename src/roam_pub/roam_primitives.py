@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 logger = logging.getLogger(__name__)
 
-type Uid = Annotated[str, Field(pattern=r"^[A-Za-z0-9-]{9}$")]
+type Uid = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{9}$")]
 """Nine-character alphanumeric stable block/page identifier (:block/uid)."""
 
 type Id = int

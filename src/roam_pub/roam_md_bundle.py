@@ -436,19 +436,17 @@ def bundle_md_document(
 
     image_links: list[tuple[str, HttpUrl]] = find_markdown_image_links(md_text)
 
-    if not image_links:
-        logger.info("No Cloud Firestore image links found in the document")
-        return
-
-    url_replacements: list[tuple[HttpUrl, str]] = fetch_all_images(image_links, api_endpoint, bundle_dir, cache_dir)
-
-    if url_replacements:
-        updated_text: str = replace_image_links(md_text, url_replacements)
-        # updated_text = normalize_link_text(updated_text)
-        # updated_text = remove_escaped_double_brackets(updated_text)
-        output_file: Path = bundle_dir / f"{bundle_dir_stem}.md"
-        output_file.write_text(updated_text, encoding="utf-8")
-        logger.info("Wrote updated Markdown to: %s", output_file)
-        logger.info("Successfully processed %d images", len(url_replacements))
+    md_to_write: str = md_text
+    if image_links:
+        url_replacements: list[tuple[HttpUrl, str]] = fetch_all_images(image_links, api_endpoint, bundle_dir, cache_dir)
+        if url_replacements:
+            md_to_write = replace_image_links(md_text, url_replacements)
+            logger.info("Successfully processed %d images", len(url_replacements))
+        else:
+            logger.warning("No images were successfully fetched")
     else:
-        logger.warning("No images were successfully fetched")
+        logger.info("No Cloud Firestore image links found in the document")
+
+    output_file: Path = bundle_dir / f"{bundle_dir_stem}.md"
+    output_file.write_text(md_to_write, encoding="utf-8")
+    logger.info("Wrote Markdown to: %s", output_file)
