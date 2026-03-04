@@ -1,27 +1,38 @@
 # Test Fixtures
 
-This directory contains test data used by the mdplay test suite.
+This directory contains test data used by the roam_pub test suite.
 
 ## Directory Structure
 
-- `markdown/` - Sample Roam Research Markdown files (`.gfm` and `.md` files)
-- `images/` - Test images fetched from Roam Research
+- `images/` — Test images referenced by live integration tests
+- `json/` — Raw Roam Local API response payloads used by unit tests
+- `markdown/` — Expected CommonMark output files and supporting assets
+- `yaml/` — Serialized `RoamNode` and `Vertex` trees used by unit tests
 
 ## Files
 
-### Markdown Files
-- `Test Article.gfm` - Simple test article with one Cloud Firestore image link
-- `Test Article_converted.md` - Converted version with local image reference
-- `[[Illustration]] Mood Boards.gfm` - Complex article with multiple images
-- `Illustrator Brief.md` - Additional test markdown file
+### images/
+- `flower.jpeg` — JPEG fixture used in `TestFetchRoamAssetFetch::test_live`
 
-### Images
-- `flower.jpeg` - Test image used in `test_live` test case
+### json/
+- `image_node.json` — Raw Roam node payload for a Firestore image block; used in `TestTranscribeNode::test_transcribes_image_node_from_fixture`
+
+### markdown/
+- `test_article_0_expected.md` — Expected CommonMark output for `Test Article 0`; used in `TestRenderTestArticle::test_article_fixture_renders_correctly`
+- `descendant_rule.md` — CSS descendant-rule reference snippet used in `TestExportRoamPageNoBundle`
+- `flower.jpeg` — Image asset bundled alongside `test_article_0_expected.md` in the no-bundle export test
+
+### yaml/
+- `test_article_0_nodes.yaml` — Serialized `NodeTree` for `Test Article 0`; used in `TestNodeTree` and `TestNodeTreeDFSIterator`
+- `test_article_0_vertices.yaml` — Serialized `VertexTree` for `Test Article 0`; used in `TestVertexTreeDFSIterator`, `TestRenderTestArticle`, and `TestTranscribeArticleFixture`
 
 ## Usage
 
-Test files reference fixtures using relative paths from the project root:
+Fixture paths are resolved via constants defined in `tests/conftest.py`:
+
 ```python
-with open("tests/fixtures/images/flower.jpeg", "rb") as f:
-    expected_contents = f.read()
+from conftest import FIXTURES_IMAGES_DIR, FIXTURES_JSON_DIR, FIXTURES_MD_DIR, FIXTURES_YAML_DIR
+
+data = (FIXTURES_YAML_DIR / "test_article_0_vertices.yaml").read_text()
+image = (FIXTURES_IMAGES_DIR / "flower.jpeg").read_bytes()
 ```

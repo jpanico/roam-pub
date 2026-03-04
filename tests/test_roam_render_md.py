@@ -1,8 +1,5 @@
 """Unit tests for roam_pub.roam_render_md."""
 
-import pathlib
-
-import yaml
 from pydantic import HttpUrl
 
 from roam_pub.roam_graph import (
@@ -11,20 +8,12 @@ from roam_pub.roam_graph import (
     PageVertex,
     TextContentVertex,
     VertexTree,
-    vertex_adapter,
 )
 from roam_pub.roam_render_md import render
 
-_FIXTURES_YAML_DIR = pathlib.Path(__file__).parent / "fixtures" / "yaml"
-_FIXTURES_MD_DIR = pathlib.Path(__file__).parent / "fixtures" / "markdown"
+from conftest import FIXTURES_MD_DIR, article0_vertex_tree
 
 _IMAGE_URL: HttpUrl = HttpUrl("https://example.com/imgs/photo.jpeg")
-
-
-def _article_vertex_tree() -> VertexTree:
-    """Load and return the test_article VertexTree from its YAML fixture."""
-    raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_vertices.yaml").read_text())
-    return VertexTree(vertices=[vertex_adapter.validate_python(r) for r in raw])
 
 
 class TestRenderPageOnly:
@@ -160,5 +149,5 @@ class TestRenderTestArticle:
 
     def test_article_fixture_renders_correctly(self) -> None:
         """Test that the full test_article VertexTree renders to the expected CommonMark output."""
-        expected = (_FIXTURES_MD_DIR / "test_article_0_expected.md").read_text()
-        assert render(_article_vertex_tree()) == expected
+        expected = (FIXTURES_MD_DIR / "test_article_0_expected.md").read_text()
+        assert render(article0_vertex_tree()) == expected

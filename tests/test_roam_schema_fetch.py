@@ -9,20 +9,11 @@ import pytest
 import requests
 from pydantic import ValidationError
 
-from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_schema_fetch import FetchRoamSchema
 from roam_pub.roam_schema import RoamAttribute, RoamNamespace, RoamSchema
 
 logger = logging.getLogger(__name__)
-
-
-@pytest.fixture
-def api_endpoint() -> ApiEndpoint:
-    """Return a minimal ApiEndpoint for use in unit tests."""
-    return ApiEndpoint(
-        url=ApiEndpointURL(local_api_port=3333, graph_name="test-graph"),
-        bearer_token="test-token",
-    )
 
 
 @pytest.fixture

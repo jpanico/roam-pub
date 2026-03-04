@@ -52,7 +52,18 @@
       "Bash(mdimport:*)",
       "Bash(~/Applications/OpenMDBundle.app/Contents/MacOS/open-mdbundle:*)",
       "Bash(/Users/jpanico/Documents/github/roam-pub/.venv/bin/:*)",
-      "Bash(/Users/jpanico/Documents/github/roam-pub/.venv/bin/export-roam-page:*)"
+      "Bash(/Users/jpanico/Documents/github/roam-pub/.venv/bin/export-roam-page:*)",
+      "Bash(ROAM_LIVE_TESTS=1 .venv/bin/pytest -m live -v)",
+      "Bash(.venv/bin/hatch run check)",
+      "Bash(git rm \"tests/fixtures/markdown/Test Article.gfm\" \"tests/fixtures/markdown/Test Article.md\")",
+      "Bash(git rm \"tests/fixtures/markdown/[[Illustration]] Mood Boards.gfm\")",
+      "Bash(git rm \"tests/fixtures/markdown/Illustrator Brief.md\")",
+      "Bash(git mv tests/fixtures/yaml/test_article_nodes.yaml tests/fixtures/yaml/test_article_0_nodes.yaml)",
+      "Bash(git mv tests/fixtures/yaml/test_article_vertices.yaml tests/fixtures/yaml/test_article_0_vertices.yaml)",
+      "Bash(git mv tests/fixtures/markdown/test_article_expected.md tests/fixtures/markdown/test_article_0_expected.md)",
+      "Bash(.venv/bin/pytest tests/test_export_roam_page.py -v)",
+      "Bash(.venv/bin/pytest tests/test_export_roam_page.py -v --tb=short -s)",
+      "Bash(.venv/bin/pytest tests/test_export_roam_page.py --tb=long)"
     ]
   }
 }

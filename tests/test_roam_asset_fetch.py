@@ -12,6 +12,8 @@ from roam_pub.roam_asset_fetch import FetchRoamAsset
 from roam_pub.roam_asset import RoamAsset
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 
+from conftest import FIXTURES_IMAGES_DIR
+
 logger = logging.getLogger(__name__)
 
 
@@ -257,7 +259,7 @@ class TestFetchRoamAssetFetch:
         logger.info(f"roam_asset: {roam_asset}")
 
         # Read the expected JPEG file
-        with open("tests/fixtures/images/flower.jpeg", "rb") as f:
+        with open(FIXTURES_IMAGES_DIR / "flower.jpeg", "rb") as f:
             expected_contents: bytes = f.read()
 
         # Assert the fetched file matches the expected file

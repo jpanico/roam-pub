@@ -3,19 +3,17 @@
 import json
 import logging
 import os
-import pathlib
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-import yaml
 from pydantic import ValidationError
-from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_primitives import IdObject
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
 
-_FIXTURES_YAML_DIR = pathlib.Path(__file__).parent / "fixtures" / "yaml"
+from conftest import article0_node_tree
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +25,6 @@ _TRANSIENT_NODE_FIELDS: set[str] = {"time", "user", "open", "sidebar", "lookup",
 def _stable_node_dict(node: RoamNode) -> dict[str, object]:
     """Return a serialised *node* with all transient fields stripped."""
     return node.model_dump(exclude=_TRANSIENT_NODE_FIELDS)
-
-
-@pytest.fixture
-def api_endpoint() -> ApiEndpoint:
-    """Return a minimal ApiEndpoint for use in unit tests."""
-    return ApiEndpoint(
-        url=ApiEndpointURL(local_api_port=3333, graph_name="test-graph"),
-        bearer_token="test-token",
-    )
 
 
 @pytest.fixture
@@ -160,7 +149,7 @@ class TestFetchRoamNodesResponsePayload:
             payload.success = False  # type: ignore[misc]
 
 
-class TestFetchRoamNodesFetch:
+class TestFetchRoamNodesFetchByPageTitle:
     """Tests for FetchRoamNodes.fetch_by_page_title."""
 
     def test_null_api_endpoint_raises_validation_error(self) -> None:
@@ -364,11 +353,64 @@ class TestFetchRoamNodesFetch:
         nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(page_title=page_title, api_endpoint=live_endpoint)
         logger.debug("nodes: %s", nodes)
 
-        fixture_nodes: list[RoamNode] = [
-            RoamNode.model_validate(raw)
-            for raw in yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
-        ]
+        fixture_nodes = article0_node_tree().network
 
         assert [_stable_node_dict(n) for n in sorted(nodes, key=lambda n: n.uid)] == [
             _stable_node_dict(n) for n in sorted(fixture_nodes, key=lambda n: n.uid)
+        ]
+
+
+class TestFetchRoamNodesFetchByNodeUid:
+    """Tests for FetchRoamNodes.fetch_by_node_uid."""
+
+    def test_null_api_endpoint_raises_validation_error(self) -> None:
+        """Test that None api_endpoint raises ValidationError."""
+        with pytest.raises(ValidationError):
+            FetchRoamNodes.fetch_by_node_uid(node_uid="wdMgyBiP9", api_endpoint=None)  # type: ignore[arg-type]
+
+    def test_null_node_uid_raises_validation_error(self, api_endpoint: ApiEndpoint) -> None:
+        """Test that None node_uid raises ValidationError."""
+        with pytest.raises(ValidationError):
+            FetchRoamNodes.fetch_by_node_uid(node_uid=None, api_endpoint=api_endpoint)  # type: ignore[arg-type]
+
+    def test_node_not_found_returns_empty_list(self, api_endpoint: ApiEndpoint) -> None:
+        """Test that an empty result (node not found) returns an empty list."""
+        mock_response: MagicMock = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = json.dumps({"success": True, "result": []})
+
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
+            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_node_uid(node_uid="wdMgyBiP9", api_endpoint=api_endpoint)
+
+        assert nodes == []
+
+    def test_fetch_by_node_uid_returns_node_and_descendants(self, api_endpoint: ApiEndpoint) -> None:
+        """Test that fetch_by_node_uid returns the root node and all its descendants.
+
+        Uses the test_article_0_nodes.yaml fixture, fetching for node_uid ``'wdMgyBiP9'``
+        (Section 2).  Expects the root node plus its four descendant blocks: Section 2.1
+        (``drtANJYTg``), Section 2.1.1 (``yFUau9Cpg``), Section 2.1.1.1 (``bxkcECGwN``),
+        and Section 2.2 (``5f1ahOFdp``).
+        """
+        # UIDs in the Section 2 subtree: root + all descendants
+        section2_uids: set[str] = {"wdMgyBiP9", "drtANJYTg", "5f1ahOFdp", "yFUau9Cpg", "bxkcECGwN"}
+
+        all_fixture_nodes = article0_node_tree().network
+        expected_nodes: list[RoamNode] = [n for n in all_fixture_nodes if n.uid in section2_uids]
+
+        mock_response: MagicMock = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = json.dumps(
+            {
+                "success": True,
+                "result": [[n.model_dump(mode="json")] for n in expected_nodes],
+            }
+        )
+
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
+            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_node_uid(node_uid="wdMgyBiP9", api_endpoint=api_endpoint)
+
+        assert len(nodes) == len(section2_uids)
+        assert [_stable_node_dict(n) for n in sorted(nodes, key=lambda n: n.uid)] == [
+            _stable_node_dict(n) for n in sorted(expected_nodes, key=lambda n: n.uid)
         ]

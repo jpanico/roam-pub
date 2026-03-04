@@ -78,6 +78,7 @@ split-summary-body = true
 [tool.pyright]
 include = ["src"]
 exclude = [".venv", "tests"]
+extraPaths = ["tests", "src"]
 typeCheckingMode = "strict"
 pythonVersion = "3.14"
 
@@ -91,6 +92,6 @@ markers = [
     "live: requires external dependencies (e.g. Roam Desktop app running locally)",
 ]
 log_cli = true
-log_cli_level = "DEBUG"
+log_cli_level = "INFO"
 log_cli_format = "[%(levelname)s] (%(module)s.%(funcName)s:%(lineno)d) %(message)s"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"

@@ -1,9 +1,6 @@
 """Tests for the roam_graph module."""
 
-import pathlib
-
 import pytest
-import yaml
 
 from roam_pub.roam_graph import (
     HeadingVertex,
@@ -12,17 +9,10 @@ from roam_pub.roam_graph import (
     Vertex,
     VertexTree,
     VertexTreeDFSIterator,
-    vertex_adapter,
 )
 from roam_pub.roam_primitives import Uid
 
-_FIXTURES_YAML_DIR = pathlib.Path(__file__).parent / "fixtures" / "yaml"
-
-
-def _article_vertex_tree() -> VertexTree:
-    """Load and return the test_article VertexTree from its YAML fixture."""
-    raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_vertices.yaml").read_text())
-    return VertexTree(vertices=[vertex_adapter.validate_python(r) for r in raw])
+from conftest import article0_vertex_tree
 
 
 class TestVertexTreeDFSIterator:
@@ -120,21 +110,21 @@ class TestVertexTreeDFSIterator:
 
     def test_article_fixture_root_is_first(self) -> None:
         """Test that the root vertex (not a child of anything) is yielded first."""
-        tree = _article_vertex_tree()
+        tree = article0_vertex_tree()
         first: Vertex = next(iter(VertexTreeDFSIterator(tree)))
         child_uids: set[Uid] = {uid for v in tree.vertices if v.children for uid in v.children}
         assert first.uid not in child_uids
 
     def test_article_fixture_yields_all_vertices(self) -> None:
         """Test that the iterator yields every vertex in the article fixture exactly once."""
-        tree = _article_vertex_tree()
+        tree = article0_vertex_tree()
         yielded: list[Vertex] = list(VertexTreeDFSIterator(tree))
         assert len(yielded) == len(tree.vertices)
         assert {v.uid for v in yielded} == {v.uid for v in tree.vertices}
 
     def test_article_fixture_parent_always_precedes_children(self) -> None:
         """Test that every parent vertex appears before all of its children in the traversal."""
-        tree = _article_vertex_tree()
+        tree = article0_vertex_tree()
         yielded: list[Vertex] = list(VertexTreeDFSIterator(tree))
         position: dict[Uid, int] = {v.uid: i for i, v in enumerate(yielded)}
         for vertex in tree.vertices:
@@ -164,7 +154,7 @@ class TestVertexTreeDFSIterator:
           40bvW14UU  — Section 3         (children[2] of root)
           JW5PswS6v  — Section 3.1       (children[0] of Section 3)
         """
-        tree = _article_vertex_tree()
+        tree = article0_vertex_tree()
         expected_uids: list[Uid] = [
             "6olpFWiw1",
             "0EgPyHSZi",

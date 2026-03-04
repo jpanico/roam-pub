@@ -1,8 +1,0 @@
-{
-    "action": "q",
-    "args": [
-        "[:find ?b :in $ ?title % :where [?p :node/title ?title] (descendant ?p ?b)]",
-        "My Page",
-        "[[(descendant ?parent ?child) [?parent :block/children ?child]] [(descendant ?parent ?child) [?parent :block/children ?mid] (descendant ?mid\n  ?child)\n    ]\n]"
-    ]
-}

@@ -4,20 +4,11 @@ import logging
 import pathlib
 from unittest.mock import patch
 
-import yaml
 from typer.testing import CliRunner
 
 from roam_pub.export_roam_page import app
-from roam_pub.roam_node import RoamNode
 
-_FIXTURES_YAML_DIR = pathlib.Path(__file__).parent / "fixtures" / "yaml"
-_FIXTURES_MD_DIR = pathlib.Path(__file__).parent / "fixtures" / "markdown"
-
-
-def _article_0_nodes() -> list[RoamNode]:
-    """Load and return the "Test Article 0" NodeNetwork from its YAML fixture."""
-    raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
-    return [RoamNode.model_validate(r) for r in raw]
+from conftest import FIXTURES_MD_DIR, article0_node_tree
 
 
 class TestExportRoamPageNoBundle:
@@ -30,7 +21,7 @@ class TestExportRoamPageNoBundle:
         Local API fetch, invokes the CLI with --no-bundle, and asserts that the
         written .md file matches test_article_0_expected.md.
         """
-        nodes: list[RoamNode] = _article_0_nodes()
+        nodes = article0_node_tree().network
         runner: CliRunner = CliRunner()
 
         with patch(
@@ -65,5 +56,5 @@ class TestExportRoamPageNoBundle:
         assert result.exit_code == 0, result.output
         output_file: pathlib.Path = tmp_path / "Test Article 0.md"
         assert output_file.exists()
-        expected: str = (_FIXTURES_MD_DIR / "test_article_0_expected.md").read_text()
+        expected: str = (FIXTURES_MD_DIR / "test_article_0_expected.md").read_text()
         assert output_file.read_text() == expected
