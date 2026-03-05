@@ -3,7 +3,8 @@
 Public symbols:
 
 - :class:`FetchRoamNodes` — stateless utility class that fetches all Roam nodes
-  by various criteria via the Local API's ``data.q`` action.
+  by various criteria via the Local API's ``data.q`` action, including
+  :meth:`~FetchRoamNodes.fetch_roam_nodes` which dispatches on target shape.
 """
 
 import logging
@@ -19,7 +20,7 @@ from roam_pub.roam_local_api import (
     invoke_action,
 )
 from roam_pub.roam_node import RoamNode
-from roam_pub.roam_primitives import Uid
+from roam_pub.roam_primitives import UID_RE, Uid
 
 logger = logging.getLogger(__name__)
 
@@ -249,3 +250,26 @@ class FetchRoamNodes:
             api_endpoint,
             f"node_uid={node_uid!r}",
         )
+
+    @staticmethod
+    def fetch_roam_nodes(target: str, api_endpoint: ApiEndpoint) -> list[RoamNode]:
+        """Fetch Roam nodes by page title or node UID, dispatching on the shape of *target*.
+
+        *target* is treated as a node UID and routed to :meth:`fetch_by_node_uid` if it
+        matches :data:`~roam_pub.roam_primitives.UID_RE`; otherwise it is treated as a page
+        title and routed to :meth:`fetch_by_page_title`.
+
+        Args:
+            target: A Roam page title or nine-character node UID.
+            api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
+
+        Returns:
+            A list of :class:`RoamNode` instances.  Returns an empty list if nothing is found.
+
+        Raises:
+            requests.exceptions.ConnectionError: If unable to connect to the Local API.
+            requests.exceptions.HTTPError: If the Local API returns a non-200 status.
+        """
+        if UID_RE.match(target):
+            return FetchRoamNodes.fetch_by_node_uid(node_uid=target, api_endpoint=api_endpoint)
+        return FetchRoamNodes.fetch_by_page_title(page_title=target, api_endpoint=api_endpoint)

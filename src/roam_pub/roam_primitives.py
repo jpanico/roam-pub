@@ -6,8 +6,9 @@ Public symbols are organized into four groups:
   :data:`PageTitle`, :data:`Url`, :data:`MediaType`.
 - **Composite type aliases**: :data:`UidPair`, :data:`RawChildren`, :data:`RawRefs`.
 - **Stub models**: :class:`IdObject`, :class:`LinkObject`.
-- **Pattern constants**: :data:`IMAGE_LINK_RE` — compiled regex matching a Roam markdown image
-  link whose URL is a Cloud Firestore storage URL.
+- **Pattern constants**: :data:`UID_PATTERN` — raw regex string for a Roam node UID;
+  :data:`UID_RE` — compiled form; :data:`IMAGE_LINK_RE` — compiled regex matching a Roam
+  markdown image link whose URL is a Cloud Firestore storage URL.
 """
 
 import logging
@@ -18,7 +19,13 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 logger = logging.getLogger(__name__)
 
-type Uid = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{9}$")]
+UID_PATTERN: str = r"^[A-Za-z0-9_-]{9}$"
+"""Raw regex pattern string for a Roam node UID: exactly 9 alphanumeric/dash/underscore characters."""
+
+UID_RE: re.Pattern[str] = re.compile(UID_PATTERN)
+"""Compiled regex for matching a Roam node UID."""
+
+type Uid = Annotated[str, Field(pattern=UID_PATTERN)]
 """Nine-character alphanumeric stable block/page identifier (:block/uid)."""
 
 type Id = int

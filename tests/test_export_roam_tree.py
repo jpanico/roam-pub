@@ -1,4 +1,4 @@
-"""Unit tests for roam_pub.export_roam_page."""
+"""Unit tests for roam_pub.export_roam_tree."""
 
 import logging
 import pathlib
@@ -6,13 +6,13 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from roam_pub.export_roam_page import app
+from roam_pub.export_roam_tree import app
 
 from conftest import FIXTURES_MD_DIR, article0_node_tree
 
 
-class TestExportRoamPageNoBundle:
-    """Tests for export_roam_page in --no-bundle mode."""
+class TestExportRoamTreeNoBundle:
+    """Tests for export_roam_tree in --no-bundle mode."""
 
     def test_no_bundle_writes_expected_markdown(self, tmp_path: pathlib.Path) -> None:
         """Test that --no-bundle exports the correct CommonMark document.
@@ -25,7 +25,7 @@ class TestExportRoamPageNoBundle:
         runner: CliRunner = CliRunner()
 
         with patch(
-            "roam_pub.export_roam_page.FetchRoamNodes.fetch_by_page_title",
+            "roam_pub.export_roam_tree.FetchRoamNodes.fetch_roam_nodes",
             return_value=nodes,
         ):
             # configure_logging() runs at import time and installs a StreamHandler

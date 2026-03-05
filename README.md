@@ -28,10 +28,8 @@ Python 3.14 toolkit for bundling Roam Research markdown exports with their Cloud
    pip install -e ".[dev]"
    ```
 
-   This installs:
-   - The `roam-pub` package in editable mode (changes to code are immediately reflected)
-   - Runtime dependencies: `pydantic`, `requests`, `typer`
-   - Development dependencies: `pytest`, `black`, `pyright`, `pydocstringformatter`
+   This installs the `roam-pub` package in editable mode (changes to code are immediately reflected),
+   along with all runtime and development dependencies declared in [`pyproject.toml`](pyproject.toml).
 
 ### Running Tests
 
@@ -134,21 +132,21 @@ roam-pub/
 ├── src/
 │   └── roam_pub/                  # Main package
 │       ├── __init__.py
-│       ├── dump_roam_page.py      # CLI: dump a Roam page as a Rich tree to the terminal
-│       ├── export_roam_page.py    # CLI: export a Roam page to a .mdbundle or plain .md
+│       ├── dump_roam_tree.py      # CLI: dump a Roam page or node subtree as a Rich tree to the terminal
+│       ├── export_roam_tree.py    # CLI: export a Roam page or node subtree to a .mdbundle or plain .md
 │       ├── roam_md_bundle.py      # Core bundling logic
 │       ├── roam_md_normalize.py   # Normalize Roam-flavored Markdown to CommonMark
 │       ├── roam_transcribe.py     # Transcribe NodeTree → VertexTree (applies normalize())
 │       ├── roam_render_md.py      # Render VertexTree → CommonMark document string
 │       ├── rich.py                # Rich panel/tree rendering for NodeTree and VertexTree
 │       ├── validation.py          # Generic accumulator-pipeline validation framework
-│       ├── roam_primitives.py     # Foundational type aliases, IMAGE_LINK_RE (dep root)
+│       ├── roam_primitives.py     # Foundational type aliases, UID_PATTERN/UID_RE, IMAGE_LINK_RE (dep root)
 │       ├── roam_node.py           # RoamNode, NodeTree, NodeTreeDFSIterator
 │       ├── roam_graph.py          # Vertex union, VertexTree, VertexTreeDFSIterator
 │       ├── roam_schema.py         # Datomic schema model types (RoamNamespace, etc.)
 │       ├── roam_asset.py          # Cloud Firestore asset model
 │       ├── roam_local_api.py      # ApiEndpoint model for the Roam Local API
-│       ├── roam_node_fetch.py     # Fetch RoamNode records via Local API
+│       ├── roam_node_fetch.py     # Fetch RoamNode records via Local API; by page title or by node UID
 │       ├── roam_schema_fetch.py   # Fetch Datomic schema via Local API
 │       ├── roam_asset_fetch.py    # Fetch Firestore assets via Local API
 │       └── logging_config.py      # Colorized logging; reads LOG_LEVEL env var
@@ -163,10 +161,11 @@ roam-pub/
 │   ├── test_roam_node_fetch.py
 │   ├── test_roam_render_md.py
 │   ├── test_roam_schema_fetch.py
-│   └── test_roam_transcribe.py
+│   ├── test_roam_transcribe.py
+│   └── test_export_roam_tree.py
 ├── scripts/
-│   ├── dump-roam-page.sh           # Shell wrapper for dump-roam-page
-│   ├── export-roam-page.sh         # Shell wrapper for export-roam-page
+│   ├── dump-roam-tree.sh           # Shell wrapper for dump-roam-tree
+│   ├── export-roam-tree.sh         # Shell wrapper for export-roam-tree
 │   ├── setup-mdbundle-handler.sh   # Setup .mdbundle auto-open in Typora
 │   └── refresh-mdbundle-folders.sh # Refresh existing .mdbundle folders
 ├── docs/
@@ -184,23 +183,31 @@ roam-pub/
 
 The package provides two command-line utilities.
 
-### `export-roam-page` — Export a Roam page to CommonMark
+### `export-roam-tree` — Export a Roam page or node subtree to CommonMark
 
-Fetches a named Roam page via the Local API, normalizes it, and writes the result to the output directory. By default it creates a `.mdbundle` directory containing the CommonMark document and any downloaded Cloud Firestore images. Pass `--no-bundle` to write a plain `.md` file instead.
+Fetches a Roam page or node subtree via the Local API, normalizes it, and writes the result to the output directory. The positional argument is interpreted as a **node UID** if it matches `^[A-Za-z0-9_-]{9}$` (exactly 9 alphanumeric/dash/underscore characters); otherwise it is treated as a **page title**.
+
+By default it creates a `.mdbundle` directory containing the CommonMark document and any downloaded Cloud Firestore images. Pass `--no-bundle` to write a plain `.md` file instead.
 
 ```bash
-export-roam-page "My Page" -p <port> -g <graph> -t <token> -o <output_dir> [--bundle|--no-bundle] [--cache-dir <dir>]
+export-roam-tree <page_title_or_node_uid> -p <port> -g <graph> -t <token> -o <output_dir> [--bundle|--no-bundle] [--cache-dir <dir>]
 ```
 
-Example — bundled output (default):
+Example — export by page title (bundled, default):
 ```bash
-export-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token -o ~/docs
-# → creates ~/docs/Test_Article.mdbundle/
+export-roam-tree "Test Article" -p 3333 -g SCFH -t your-bearer-token -o ~/docs
+# → creates ~/docs/Test Article.mdbundle/
+```
+
+Example — export by node UID:
+```bash
+export-roam-tree wdMgyBiP9 -p 3333 -g SCFH -t your-bearer-token -o ~/docs
+# → creates ~/docs/wdMgyBiP9.mdbundle/
 ```
 
 Example — plain `.md` output:
 ```bash
-export-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token -o ~/docs --no-bundle
+export-roam-tree "Test Article" -p 3333 -g SCFH -t your-bearer-token -o ~/docs --no-bundle
 # → creates ~/docs/Test Article.md
 ```
 
@@ -212,15 +219,15 @@ export ROAM_API_TOKEN=your-bearer-token
 export ROAM_EXPORT_DIR=~/docs
 export ROAM_CACHE_DIR=~/.cache/roam   # optional: skip re-downloading unchanged images
 
-export-roam-page "Test Article"
+export-roam-tree "Test Article"
 ```
 
-### `dump-roam-page` — Inspect a Roam page as a Rich tree
+### `dump-roam-tree` — Inspect a Roam page or node subtree as a Rich tree
 
-Fetches a named Roam page and renders it as a colorized tree in the terminal. Useful for inspecting the raw node structure or the normalized vertex structure.
+Fetches a Roam page or node subtree and renders it as a colorized tree in the terminal. Useful for inspecting the raw node structure or the normalized vertex structure. The positional argument follows the same page-title-vs-node-UID inference as `export-roam-tree`.
 
 ```bash
-dump-roam-page "My Page" -p <port> -g <graph> -t <token> [--mode v|n|vn] [--node-props <props>]
+dump-roam-tree <page_title_or_node_uid> -p <port> -g <graph> -t <token> [--mode v|n|vn] [--node-props <props>]
 ```
 
 - `--mode v` (default) — vertex tree only
@@ -228,9 +235,10 @@ dump-roam-page "My Page" -p <port> -g <graph> -t <token> [--mode v|n|vn] [--node
 - `--mode vn` — both trees
 - `--node-props heading,parents` — select which `RoamNode` fields appear in each panel
 
-Example:
+Examples:
 ```bash
-dump-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token --mode vn
+dump-roam-tree "Test Article" -p 3333 -g SCFH -t your-bearer-token --mode vn
+dump-roam-tree wdMgyBiP9 -p 3333 -g SCFH -t your-bearer-token
 ```
 
 ### macOS Integration: Auto-Open in Typora

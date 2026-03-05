@@ -12,8 +12,8 @@ pip install -e ".[dev]"
 
 ## Key Commands
 ```bash
-dump-roam-page "Page Title" -p <port> -g <graph> -t <token> [--mode v|n|vn] [--node-props <props>]
-export-roam-page "Page Title" -p <port> -g <graph> -t <token> -o <output_dir> [--bundle|--no-bundle] [--cache-dir <dir>]
+dump-roam-tree <page_title_or_node_uid> -p <port> -g <graph> -t <token> [--mode v|n|vn] [--node-props <props>]
+export-roam-tree <page_title_or_node_uid> -p <port> -g <graph> -t <token> -o <output_dir> [--bundle|--no-bundle] [--cache-dir <dir>]
 
 # Run the full check pipeline (format + lint + type check + tests) in one shot:
 hatch run check
@@ -30,8 +30,8 @@ pytest                            # run tests
 ## Project Structure
 - `src/roam_pub/` — main package
   - **CLI entry points**
-    - `dump_roam_page.py` — dumps a Roam page as a Rich tree to the terminal (`--mode v|n|vn`)
-    - `export_roam_page.py` — exports a Roam page to a `.mdbundle` (default) or plain `.md` (`--no-bundle`) (`export-roam-page`)
+    - `dump_roam_tree.py` — dumps a Roam page or node subtree as a Rich tree to the terminal (`--mode v|n|vn`)
+    - `export_roam_tree.py` — exports a Roam page or node subtree to a `.mdbundle` (default) or plain `.md` (`--no-bundle`); target is a page title or node UID (`export-roam-tree`)
   - **Core logic**
     - `roam_md_bundle.py` — core bundling logic
     - `roam_md_normalize.py` — normalizes Roam-flavored Markdown strings to CommonMark
@@ -40,19 +40,19 @@ pytest                            # run tests
     - `rich.py` — Rich panel/tree rendering for `NodeTree` and `VertexTree`
     - `validation.py` — generic accumulator-pipeline validation framework
   - **Model layer**
-    - `roam_primitives.py` — foundational type aliases, stub models, `IMAGE_LINK_RE` (dependency root)
+    - `roam_primitives.py` — foundational type aliases, stub models, `UID_PATTERN`, `UID_RE`, `IMAGE_LINK_RE` (dependency root)
     - `roam_node.py` — `RoamNode`, `NodeTree`, `NodeTreeDFSIterator`
     - `roam_graph.py` — `Vertex` union, `VertexTree`, `VertexTreeDFSIterator`
     - `roam_schema.py` — Datomic schema model types (`RoamNamespace`, etc.)
     - `roam_asset.py` — Cloud Firestore asset model
   - **API / fetching**
     - `roam_local_api.py` — `ApiEndpoint` model for the Roam Local API
-    - `roam_node_fetch.py` — fetches `RoamNode` records via Local API
+    - `roam_node_fetch.py` — fetches `RoamNode` records via Local API; `fetch_roam_nodes` dispatches on page title vs. node UID
     - `roam_schema_fetch.py` — fetches Datomic schema via Local API
     - `roam_asset_fetch.py` — fetches Firestore assets via Local API
   - **Infrastructure**
     - `logging_config.py` — colorized logging (`configure_logging()`); reads `LOG_LEVEL` env var
-- `scripts/` — shell wrapper scripts (`dump-roam-page.sh`, `export-roam-page.sh`)
+- `scripts/` — shell wrapper scripts (`dump-roam-tree.sh`, `export-roam-tree.sh`)
 - `tests/fixtures/` — sample markdown, images, JSON, YAML for tests
 
 ## Conventions
@@ -81,5 +81,5 @@ All code written or modified by Claude MUST follow these conventions — no exce
 - `ROAM_LOCAL_API_PORT` — port for Roam Local API (all CLI tools)
 - `ROAM_GRAPH_NAME` — Roam graph name (all CLI tools)
 - `ROAM_API_TOKEN` — bearer token for auth (all CLI tools)
-- `ROAM_EXPORT_DIR` — output directory for `export-roam-page`
-- `ROAM_CACHE_DIR` — directory for caching downloaded Cloud Firestore assets (`export-roam-page`)
+- `ROAM_EXPORT_DIR` — output directory for `export-roam-tree`
+- `ROAM_CACHE_DIR` — directory for caching downloaded Cloud Firestore assets (`export-roam-tree`)

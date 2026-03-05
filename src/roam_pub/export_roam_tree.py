@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
-"""CLI tool for exporting a Roam Research page to CommonMark.
+"""CLI tool for exporting a Roam Research page or node subtree to CommonMark.
 
-Fetches all descendant blocks of a named page via the Roam Local API,
+Fetches all descendant blocks identified by ``TARGET`` via the Roam Local API,
 transcribes them into a :class:`~roam_pub.roam_graph.VertexTree`, renders
 the tree to a CommonMark document via :func:`~roam_pub.roam_render_md.render`,
 then writes the result in one of two modes controlled by ``--bundle/--no-bundle``:
 
 - **Bundle mode** (default, ``--bundle``) — fetches any Cloud Firestore images
   referenced in the document and writes a self-contained
-  ``<output_dir>/<page_title>.mdbundle/`` directory via
+  ``<output_dir>/<target>.mdbundle/`` directory via
   :func:`~roam_pub.roam_md_bundle.bundle_md_document`.  Pass ``--cache-dir``
   to avoid re-downloading unchanged assets across runs.
 - **Plain mode** (``--no-bundle``) — writes the rendered CommonMark text
-  directly to ``<output_dir>/<page_title>.md`` without fetching any images.
+  directly to ``<output_dir>/<target>.md`` without fetching any images.
+
+``TARGET`` is interpreted as a **node UID** if it matches
+:data:`~roam_pub.roam_primitives.UID_PATTERN` (exactly 9 alphanumeric/dash/underscore
+characters, the fixed format used by Roam for all block and page UIDs); otherwise it is
+treated as a **page title**.  A page whose title happens to be exactly 9
+characters from that alphabet would be misidentified — this edge case is
+considered negligible in practice.
 
 Logging is colorized by level via :mod:`roam_pub.logging_config` and
 configurable via the ``LOG_LEVEL`` environment variable (default: ``INFO``).
@@ -20,15 +27,15 @@ configurable via the ``LOG_LEVEL`` environment variable (default: ``INFO``).
 Public symbols:
 
 - :data:`app` — the :class:`~typer.Typer` application instance.
-- :func:`main` — the CLI entry point; registered as the ``export-roam-page``
+- :func:`main` — the CLI entry point; registered as the ``export-roam-tree``
   console script.
 
 Example::
 
-    export-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token -o ~/docs
-    export-roam-page "Test Article" -p 3333 -g SCFH -t tok -o ~/docs --cache-dir ~/.roam-cache
-    export-roam-page "Test Article" -p 3333 -g SCFH -t tok -o ~/docs --no-bundle
-    export-roam-page "Test Article"  # reads all options from env vars
+    export-roam-tree "Test Article" -p 3333 -g SCFH -t tok -o ~/docs
+    export-roam-tree wdMgyBiP9 -p 3333 -g SCFH -t tok -o ~/docs
+    export-roam-tree "Test Article" -p 3333 -g SCFH -t tok -o ~/docs --no-bundle
+    export-roam-tree "Test Article"  # reads all options from env vars
 """
 
 import logging
@@ -43,6 +50,7 @@ from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_md_bundle import bundle_md_document
 from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
+from roam_pub.roam_primitives import UID_PATTERN
 from roam_pub.roam_render_md import render
 from roam_pub.roam_transcribe import transcribe
 
@@ -54,7 +62,16 @@ app = typer.Typer()
 
 @app.command()
 def main(
-    page_title: Annotated[str, typer.Argument(help="The title of a Roam Page")],
+    target: Annotated[
+        str,
+        typer.Argument(
+            help=(
+                "Roam page title or node UID to export. "
+                f"Treated as a node UID if it matches {UID_PATTERN}; "
+                "otherwise treated as a page title."
+            ),
+        ),
+    ],
     local_api_port: Annotated[
         int,
         typer.Option(
@@ -114,16 +131,17 @@ def main(
         ),
     ] = None,
 ) -> None:
-    """Export a Roam Research page to CommonMark.
+    """Export a Roam Research page or node subtree to CommonMark.
 
-    Fetches all descendant blocks of PAGE_TITLE, transcribes them, and renders
-    the result to CommonMark.  With ``--bundle`` (default) the output is written
-    to OUTPUT_DIR/<page_title>.mdbundle/ with Cloud Firestore images downloaded
+    TARGET is interpreted as a node UID (fetches the subtree rooted there) if
+    it matches ``^[A-Za-z0-9_-]{9}$``, otherwise as a page title (fetches all
+    blocks on that page).  With ``--bundle`` (default) the output is written to
+    OUTPUT_DIR/<target>.mdbundle/ with Cloud Firestore images downloaded
     alongside; with ``--no-bundle`` a plain .md file is written instead.
     """
     logger.debug(
-        "page_title=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, output_dir=%r, bundle=%r, cache_dir=%r",
-        page_title,
+        "target=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, output_dir=%r, bundle=%r, cache_dir=%r",
+        target,
         local_api_port,
         graph_name,
         api_bearer_token,
@@ -138,13 +156,13 @@ def main(
     )
 
     try:
-        nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(page_title=page_title, api_endpoint=api_endpoint)
+        nodes: list[RoamNode] = FetchRoamNodes.fetch_roam_nodes(target=target, api_endpoint=api_endpoint)
     except Exception as e:
-        logger.error("Error fetching page %r: %s", page_title, e)
+        logger.error("Error fetching %r: %s", target, e)
         raise typer.Exit(code=1)
 
     if not nodes:
-        logger.info("No Roam page found with title %r — nothing to export.", page_title)
+        logger.info("No Roam nodes found for %r — nothing to export.", target)
         raise typer.Exit(code=1)
 
     node_tree: NodeTree = NodeTree(network=nodes)
@@ -157,17 +175,17 @@ def main(
         try:
             bundle_md_document(
                 md_text=md_document,
-                document_name=page_title,
+                document_name=target,
                 output_dir=output_dir,
                 api_endpoint=api_endpoint,
                 cache_dir=cache_dir,
             )
         except Exception as e:
-            logger.error("Error bundling page %r: %s", page_title, e)
+            logger.error("Error bundling %r: %s", target, e)
             raise typer.Exit(code=1)
     else:
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_path: pathlib.Path = output_dir / f"{page_title}.md"
+        output_path: pathlib.Path = output_dir / f"{target}.md"
         output_path.write_text(md_document)
         logger.info("Wrote CommonMark document to %s", output_path)
 

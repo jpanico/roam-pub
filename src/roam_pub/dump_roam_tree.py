@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""CLI tool for dumping a Roam Research page as a Rich tree to the terminal.
+"""CLI tool for dumping a Roam Research page or node subtree as a Rich tree to the terminal.
 
-Fetches all descendant blocks of a named page via the Roam Local API,
+Fetches all descendant blocks identified by ``TARGET`` via the Roam Local API,
 transcribes them into a :class:`~roam_pub.roam_graph.VertexTree`, and renders
 one or both of the following as a colorized :class:`~rich.tree.Tree` panel
 hierarchy:
@@ -16,6 +16,13 @@ hierarchy:
   :data:`~roam_pub.rich.DEFAULT_NODE_PANEL_PROPS`).
 - **Both** (``--mode vn``) — vertex tree followed by node tree.
 
+``TARGET`` is interpreted as a **node UID** if it matches
+:data:`~roam_pub.roam_primitives.UID_PATTERN` (exactly 9 alphanumeric/dash/underscore
+characters, the fixed format used by Roam for all block and page UIDs); otherwise it is
+treated as a **page title**.  A page whose title happens to be exactly 9
+characters from that alphabet would be misidentified — this edge case is
+considered negligible in practice.
+
 Logging is colorized by level via :mod:`roam_pub.logging_config` and
 configurable via the ``LOG_LEVEL`` environment variable (default: ``INFO``).
 
@@ -24,13 +31,14 @@ Public symbols:
 - :class:`Mode` — ``StrEnum`` of output modes: ``v`` (vertex), ``n`` (node),
   ``vn`` (both).
 - :data:`app` — the :class:`~typer.Typer` application instance.
-- :func:`main` — the CLI entry point; registered as the ``dump-roam-page``
+- :func:`main` — the CLI entry point; registered as the ``dump-roam-tree``
   console script.
 
 Example::
 
-    dump-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token
-    dump-roam-page "Test Article" -p 3333 -g SCFH -t tok --mode n --node-props heading,parents
+    dump-roam-tree "Test Article" -p 3333 -g SCFH -t your-bearer-token
+    dump-roam-tree wdMgyBiP9 -p 3333 -g SCFH -t tok
+    dump-roam-tree "Test Article" -p 3333 -g SCFH -t tok --mode n --node-props heading,parents
 """
 
 import enum
@@ -47,6 +55,7 @@ from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.logging_config import configure_logging
 from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
+from roam_pub.roam_primitives import UID_PATTERN
 from roam_pub.roam_transcribe import transcribe
 
 configure_logging()
@@ -66,7 +75,16 @@ app = typer.Typer()
 
 @app.command()
 def main(
-    page_title: Annotated[str, typer.Argument(help="The title of a Roam Page")],
+    target: Annotated[
+        str,
+        typer.Argument(
+            help=(
+                "Roam page title or node UID to dump. "
+                f"Treated as a node UID if it matches {UID_PATTERN}; "
+                "otherwise treated as a page title."
+            ),
+        ),
+    ],
     local_api_port: Annotated[
         int,
         typer.Option(
@@ -113,15 +131,16 @@ def main(
         ),
     ] = Mode.vertex,
 ) -> None:
-    """Dump a Roam Research page as a Rich tree to the console.
+    """Dump a Roam Research page or node subtree as a Rich tree to the console.
 
-    Fetches all descendant blocks of PAGE_TITLE, transcribes them, and renders
-    the vertex tree, the raw node tree, or both, depending on ``--mode``
-    (default: vertex tree only).
+    TARGET is interpreted as a node UID (fetches the subtree rooted there) if
+    it matches :data:`~roam_pub.roam_primitives.UID_PATTERN`, otherwise as a
+    page title (fetches all blocks on that page).  Renders the vertex tree, the
+    raw node tree, or both, depending on ``--mode`` (default: vertex tree only).
     """
     logger.debug(
-        "page_title=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, node_props=%r, mode=%r",
-        page_title,
+        "target=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, node_props=%r, mode=%r",
+        target,
         local_api_port,
         graph_name,
         api_bearer_token,
@@ -135,13 +154,13 @@ def main(
     )
 
     try:
-        nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(page_title=page_title, api_endpoint=api_endpoint)
+        nodes: list[RoamNode] = FetchRoamNodes.fetch_roam_nodes(target=target, api_endpoint=api_endpoint)
     except Exception as e:
-        logger.error(f"Error fetching page '{page_title}': {e}")
+        logger.error("Error fetching %r: %s", target, e)
         raise typer.Exit(code=1)
 
     if not nodes:
-        logger.info("No Roam page found with title %r — nothing to dump.", page_title)
+        logger.info("No Roam nodes found for %r — nothing to dump.", target)
         raise typer.Exit(code=1)
 
     effective_props: list[str] = (

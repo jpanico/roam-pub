@@ -26,8 +26,8 @@ dev = [
 ]
 
 [project.scripts]
-dump-roam-page = "roam_pub.dump_roam_page:app"
-export-roam-page = "roam_pub.export_roam_page:app"
+dump-roam-tree = "roam_pub.dump_roam_tree:app"
+export-roam-tree = "roam_pub.export_roam_tree:app"
 
 [tool.hatch.envs.default.scripts]
 check = [
