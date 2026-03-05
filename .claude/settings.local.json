@@ -65,7 +65,8 @@
       "Bash(.venv/bin/pytest tests/test_export_roam_page.py -v --tb=short -s)",
       "Bash(.venv/bin/pytest tests/test_export_roam_page.py --tb=long)",
       "Bash(git mv scripts/dump-roam-page.sh scripts/dump-roam-tree.sh)",
-      "Bash(git mv scripts/export-roam-page.sh scripts/export-roam-tree.sh)"
+      "Bash(git mv scripts/export-roam-page.sh scripts/export-roam-tree.sh)",
+      "Bash(ROAM_RUN_LIVE_TESTS=1 pytest -m live -v)"
     ]
   }
 }

@@ -23,6 +23,7 @@ Public symbols:
 
 import logging
 from collections.abc import Iterator
+from typing import Final
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -168,7 +169,7 @@ class NodeTree(BaseModel):
         """Raise ValueError if *network* fails any tree invariant checked by is_tree."""
         result = is_tree(self.network, is_rooted=self.is_rooted)
         if not result.is_valid:
-            messages = "; ".join(e.message for e in result.errors)
+            messages = "; ".join(str(e) for e in result.errors)
             raise ValueError(messages)
         return self
 
@@ -275,7 +276,9 @@ def has_single_root(network: NodeNetwork) -> ValidationError | None:
     if len(roots) == 1:
         return None
     root_uids = sorted(n.uid for n in roots)
-    return ValidationError(message=f"expected exactly one root node; found {len(roots)}: {root_uids}")
+    return ValidationError(
+        message=f"expected exactly one root node; found {len(roots)}: {root_uids}", validator=has_single_root
+    )
 
 
 def all_children_present(network: NodeNetwork) -> ValidationError | None:
@@ -294,14 +297,20 @@ def all_children_present(network: NodeNetwork) -> ValidationError | None:
     Returns:
         ``None`` if every child id in *network* resolves to a node in *network*;
         a :class:`~roam_pub.validation.ValidationError` listing the sorted
-        absent child ids otherwise.
+        absent child ids and the sorted ids of the nodes that referenced them otherwise.
     """
-    network_ids: set[Id] = {n.id for n in network}
-    missing: set[Id] = {child.id for n in network if n.children for child in n.children if child.id not in network_ids}
-    if not missing:
+    network_ids: Final[set[Id]] = {n.id for n in network}
+    violations: Final[list[tuple[Id, Id]]] = [
+        (n.id, child.id) for n in network if n.children for child in n.children if child.id not in network_ids
+    ]
+    if not violations:
         return None
-    missing_ids = sorted(missing)
-    return ValidationError(message=f"child ids absent from network: {missing_ids}")
+    missing_ids: Final[list[Id]] = sorted({child_id for _, child_id in violations})
+    node_ids: Final[list[Id]] = sorted({node_id for node_id, _ in violations})
+    return ValidationError(
+        message=f"child ids absent from network: {missing_ids}; referenced by nodes: {node_ids}",
+        validator=all_children_present,
+    )
 
 
 def all_parents_present(network: NodeNetwork, *, is_rooted: bool = True) -> ValidationError | None:
@@ -326,17 +335,21 @@ def all_parents_present(network: NodeNetwork, *, is_rooted: bool = True) -> Vali
     Returns:
         ``None`` if every applicable parent id in *network* resolves to a node in
         *network*; a :class:`~roam_pub.validation.ValidationError` listing the sorted
-        absent parent ids otherwise.
+        absent parent ids and the sorted ids of the nodes that referenced them otherwise.
     """
-    network_ids: set[Id] = {n.id for n in network}
-    nodes_to_check = network if is_rooted else [n for n in network if not is_root(n, network)]
-    missing: set[Id] = {
-        parent.id for n in nodes_to_check if n.parents for parent in n.parents if parent.id not in network_ids
-    }
-    if not missing:
+    network_ids: Final[set[Id]] = {n.id for n in network}
+    nodes_to_check: Final[NodeNetwork] = network if is_rooted else [n for n in network if not is_root(n, network)]
+    violations: Final[list[tuple[Id, Id]]] = [
+        (n.id, parent.id) for n in nodes_to_check if n.parents for parent in n.parents if parent.id not in network_ids
+    ]
+    if not violations:
         return None
-    missing_ids = sorted(missing)
-    return ValidationError(message=f"parent ids absent from network: {missing_ids}")
+    missing_ids: Final[list[Id]] = sorted({parent_id for _, parent_id in violations})
+    node_ids: Final[list[Id]] = sorted({node_id for node_id, _ in violations})
+    return ValidationError(
+        message=f"parent ids absent from network: {missing_ids}; referenced by nodes: {node_ids}",
+        validator=all_parents_present,
+    )
 
 
 def has_unique_ids(network: NodeNetwork) -> ValidationError | None:
@@ -363,7 +376,7 @@ def has_unique_ids(network: NodeNetwork) -> ValidationError | None:
             duplicates.add(id_)
         seen.add(id_)
     dup_ids = sorted(duplicates)
-    return ValidationError(message=f"expected unique node ids; found duplicates: {dup_ids}")
+    return ValidationError(message=f"expected unique node ids; found duplicates: {dup_ids}", validator=has_unique_ids)
 
 
 def is_acyclic(network: NodeNetwork) -> ValidationError | None:
@@ -415,7 +428,8 @@ def is_acyclic(network: NodeNetwork) -> ValidationError | None:
             cycle_uid = _dfs(n.id)
             if cycle_uid is not None:
                 return ValidationError(
-                    message=f"child-edge graph contains a directed cycle involving node '{cycle_uid}'"
+                    message=f"child-edge graph contains a directed cycle involving node '{cycle_uid}'",
+                    validator=is_acyclic,
                 )
     return None
 

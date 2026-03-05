@@ -15,6 +15,7 @@ so the caller receives the complete set of errors in one pass.
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Final
 
 
 @dataclass(frozen=True)
@@ -22,10 +23,16 @@ class ValidationError:
     """Immutable record of a single validation failure.
 
     Attributes:
+        validator: The validator function that produced this error.
         message: Human-readable description of the validation failure.
     """
 
+    validator: Callable[..., ValidationError | None]
     message: str
+
+    def __str__(self) -> str:
+        """Return a human-readable string combining the validator name and message."""
+        return f"{self.validator.__name__}: {self.message}"
 
 
 @dataclass(frozen=True)
@@ -71,5 +78,5 @@ def validate_all[T](input: T, validators: list[Validator[T]]) -> ValidationResul
         A :class:`ValidationResult` containing all failures, or an empty
         result if every validator passed.
     """
-    errors = tuple(error for v in validators if (error := v(input)) is not None)
+    errors: Final[tuple[ValidationError, ...]] = tuple(error for v in validators if (error := v(input)) is not None)
     return ValidationResult(errors=errors)

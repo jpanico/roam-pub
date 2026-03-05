@@ -63,6 +63,7 @@ pytest                            # run tests
 - **Strong typing**: all Python code must use type annotations throughout; no `Any` types; enforced by pyright in strict mode
 - **Bash tool calls**: never chain multiple different commands with `&&` in a single Bash tool call; use separate Bash tool calls instead. Exception: chaining is fine when all sub-commands share the same base command (e.g., `git add . && git commit ... && git push`).
 - **Logging format**: all `logger.*()` calls must use `%`-style format strings (e.g., `logger.info("x=%s", x)`) — never f-strings (e.g., `logger.info(f"x={x}")`); this enables lazy interpolation and better log aggregation in monitoring tools.
+- **Immutable locals**: all local variables must be annotated `Final[T]` by default (e.g., `x: Final[int] = 1`); only omit `Final` when the variable genuinely needs to be reassigned.
 
 ## Modern Python Requirements (Python 3.14)
 All code written or modified by Claude MUST follow these conventions — no exceptions:

@@ -126,7 +126,9 @@ class TestHasSingleRoot:
 
     def test_empty_network_returns_error(self) -> None:
         """Test that an empty network has no root and returns a ValidationError."""
-        assert has_single_root([]) == ValidationError(message="expected exactly one root node; found 0: []")
+        assert has_single_root([]) == ValidationError(
+            message="expected exactly one root node; found 0: []", validator=has_single_root
+        )
 
     # ------------------------------------------------------------------
     # single-node networks
@@ -157,7 +159,8 @@ class TestHasSingleRoot:
         node1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER)
         node2 = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER)
         assert has_single_root([node1, node2]) == ValidationError(
-            message="expected exactly one root node; found 2: ['page00001', 'page00002']"
+            message="expected exactly one root node; found 2: ['page00001', 'page00002']",
+            validator=has_single_root,
         )
 
     def test_mutual_cycle_returns_error(self) -> None:
@@ -165,7 +168,8 @@ class TestHasSingleRoot:
         node_a = RoamNode(uid="cycleA001", id=1, time=STUB_TIME, user=STUB_USER, parents=[IdObject(id=2)])
         node_b = RoamNode(uid="cycleB001", id=2, time=STUB_TIME, user=STUB_USER, parents=[IdObject(id=1)])
         assert has_single_root([node_a, node_b]) == ValidationError(
-            message="expected exactly one root node; found 0: []"
+            message="expected exactly one root node; found 0: []",
+            validator=has_single_root,
         )
 
     # ------------------------------------------------------------------
@@ -186,7 +190,8 @@ class TestHasSingleRoot:
         root2 = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER)
         child2 = RoamNode(uid="block0002", id=20, time=STUB_TIME, user=STUB_USER, parents=[IdObject(id=2)])
         assert has_single_root([root1, child1, root2, child2]) == ValidationError(
-            message="expected exactly one root node; found 2: ['page00001', 'page00002']"
+            message="expected exactly one root node; found 2: ['page00001', 'page00002']",
+            validator=has_single_root,
         )
 
 
@@ -245,7 +250,10 @@ class TestAllChildrenPresent:
     def test_single_absent_child_returns_error(self) -> None:
         """Test that a node whose single child id is absent from the network returns a ValidationError."""
         parent = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=99)])
-        assert all_children_present([parent]) == ValidationError(message="child ids absent from network: [99]")
+        assert all_children_present([parent]) == ValidationError(
+            message="child ids absent from network: [99]; referenced by nodes: [1]",
+            validator=all_children_present,
+        )
 
     def test_one_absent_among_several_children_returns_error(self) -> None:
         """Test that a node with one absent child id among several returns a ValidationError."""
@@ -253,13 +261,19 @@ class TestAllChildrenPresent:
             uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=10), IdObject(id=99)]
         )
         child = RoamNode(uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, string="text")
-        assert all_children_present([parent, child]) == ValidationError(message="child ids absent from network: [99]")
+        assert all_children_present([parent, child]) == ValidationError(
+            message="child ids absent from network: [99]; referenced by nodes: [1]",
+            validator=all_children_present,
+        )
 
     def test_absent_child_in_second_node_returns_error(self) -> None:
         """Test that a missing child in any node in the network returns a ValidationError."""
         root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=10)])
         mid = RoamNode(uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, string="mid", children=[IdObject(id=99)])
-        assert all_children_present([root, mid]) == ValidationError(message="child ids absent from network: [99]")
+        assert all_children_present([root, mid]) == ValidationError(
+            message="child ids absent from network: [99]; referenced by nodes: [10]",
+            validator=all_children_present,
+        )
 
 
 class TestAllParentsPresent:
@@ -319,7 +333,10 @@ class TestAllParentsPresent:
     def test_single_absent_parent_returns_error(self) -> None:
         """Test that a node whose single parent id is absent from the network returns a ValidationError."""
         child = RoamNode(uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, parents=[IdObject(id=99)])
-        assert all_parents_present([child]) == ValidationError(message="parent ids absent from network: [99]")
+        assert all_parents_present([child]) == ValidationError(
+            message="parent ids absent from network: [99]; referenced by nodes: [10]",
+            validator=all_parents_present,
+        )
 
     def test_one_absent_among_several_parents_returns_error(self) -> None:
         """Test that a node with one absent parent id among several returns a ValidationError."""
@@ -327,7 +344,10 @@ class TestAllParentsPresent:
         child = RoamNode(
             uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, parents=[IdObject(id=1), IdObject(id=99)]
         )
-        assert all_parents_present([parent, child]) == ValidationError(message="parent ids absent from network: [99]")
+        assert all_parents_present([parent, child]) == ValidationError(
+            message="parent ids absent from network: [99]; referenced by nodes: [10]",
+            validator=all_parents_present,
+        )
 
     def test_absent_parent_in_second_node_returns_error(self) -> None:
         """Test that a missing parent in any node in the network returns a ValidationError."""
@@ -336,7 +356,10 @@ class TestAllParentsPresent:
         leaf = RoamNode(
             uid="block0002", id=20, time=STUB_TIME, user=STUB_USER, string="leaf", parents=[IdObject(id=99)]
         )
-        assert all_parents_present([root, mid, leaf]) == ValidationError(message="parent ids absent from network: [99]")
+        assert all_parents_present([root, mid, leaf]) == ValidationError(
+            message="parent ids absent from network: [99]; referenced by nodes: [20]",
+            validator=all_parents_present,
+        )
 
     # ------------------------------------------------------------------
     # is_rooted=False — root nodes exempt from parent-presence check
@@ -356,7 +379,8 @@ class TestAllParentsPresent:
             uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, parents=[IdObject(id=1), IdObject(id=99)]
         )
         assert all_parents_present([page, child], is_rooted=False) == ValidationError(
-            message="parent ids absent from network: [99]"
+            message="parent ids absent from network: [99]; referenced by nodes: [10]",
+            validator=all_parents_present,
         )
 
     def test_not_rooted_subtree_with_external_root_parent_returns_none(self) -> None:
@@ -418,7 +442,8 @@ class TestHasUniqueIds:
         node1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER)
         node2 = RoamNode(uid="page00002", id=1, time=STUB_TIME, user=STUB_USER)
         assert has_unique_ids([node1, node2]) == ValidationError(
-            message="expected unique node ids; found duplicates: [1]"
+            message="expected unique node ids; found duplicates: [1]",
+            validator=has_unique_ids,
         )
 
     def test_one_duplicate_among_several_nodes_returns_error(self) -> None:
@@ -427,7 +452,8 @@ class TestHasUniqueIds:
         node2 = RoamNode(uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, string="a")
         node3 = RoamNode(uid="block0002", id=10, time=STUB_TIME, user=STUB_USER, string="b")
         assert has_unique_ids([node1, node2, node3]) == ValidationError(
-            message="expected unique node ids; found duplicates: [10]"
+            message="expected unique node ids; found duplicates: [10]",
+            validator=has_unique_ids,
         )
 
 
@@ -491,7 +517,8 @@ class TestIsAcyclic:
         """Test that a node whose children list references itself returns a ValidationError."""
         node = RoamNode(uid="cycleA001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=1)])
         assert is_acyclic([node]) == ValidationError(
-            message="child-edge graph contains a directed cycle involving node 'cycleA001'"
+            message="child-edge graph contains a directed cycle involving node 'cycleA001'",
+            validator=is_acyclic,
         )
 
     def test_two_node_mutual_cycle_returns_error(self) -> None:
@@ -499,7 +526,8 @@ class TestIsAcyclic:
         node_a = RoamNode(uid="cycleA001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=2)])
         node_b = RoamNode(uid="cycleB001", id=2, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=1)])
         assert is_acyclic([node_a, node_b]) == ValidationError(
-            message="child-edge graph contains a directed cycle involving node 'cycleA001'"
+            message="child-edge graph contains a directed cycle involving node 'cycleA001'",
+            validator=is_acyclic,
         )
 
     def test_three_node_cycle_returns_error(self) -> None:
@@ -508,7 +536,8 @@ class TestIsAcyclic:
         node_b = RoamNode(uid="cycleB001", id=2, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=3)])
         node_c = RoamNode(uid="cycleC001", id=3, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=1)])
         assert is_acyclic([node_a, node_b, node_c]) == ValidationError(
-            message="child-edge graph contains a directed cycle involving node 'cycleA001'"
+            message="child-edge graph contains a directed cycle involving node 'cycleA001'",
+            validator=is_acyclic,
         )
 
 
@@ -523,7 +552,9 @@ class TestIsTree:
         """Test that an empty network fails has_single_root (zero roots) and returns an invalid result."""
         result = is_tree([])
         assert result.is_valid is False
-        assert result.errors == (ValidationError(message="expected exactly one root node; found 0: []"),)
+        assert result.errors == (
+            ValidationError(message="expected exactly one root node; found 0: []", validator=has_single_root),
+        )
 
     def test_single_root_node_is_valid(self) -> None:
         """Test that a single parentless node satisfies all tree invariants."""
@@ -563,7 +594,10 @@ class TestIsTree:
         result = is_tree([node])
         assert result.is_valid is False
         assert result.errors == (
-            ValidationError(message="child-edge graph contains a directed cycle involving node 'cycleA001'"),
+            ValidationError(
+                message="child-edge graph contains a directed cycle involving node 'cycleA001'",
+                validator=is_acyclic,
+            ),
         )
 
     def test_missing_child_returns_invalid(self) -> None:
@@ -571,7 +605,12 @@ class TestIsTree:
         parent = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=99)])
         result = is_tree([parent])
         assert result.is_valid is False
-        assert result.errors == (ValidationError(message="child ids absent from network: [99]"),)
+        assert result.errors == (
+            ValidationError(
+                message="child ids absent from network: [99]; referenced by nodes: [1]",
+                validator=all_children_present,
+            ),
+        )
 
     def test_two_roots_returns_invalid(self) -> None:
         """Test that two parentless nodes violate has_single_root and return an invalid result."""
@@ -580,7 +619,10 @@ class TestIsTree:
         result = is_tree([node1, node2])
         assert result.is_valid is False
         assert result.errors == (
-            ValidationError(message="expected exactly one root node; found 2: ['page00001', 'page00002']"),
+            ValidationError(
+                message="expected exactly one root node; found 2: ['page00001', 'page00002']",
+                validator=has_single_root,
+            ),
         )
 
     def test_multiple_failures_accumulate_all_errors(self) -> None:
@@ -593,9 +635,15 @@ class TestIsTree:
         result = is_tree([node1, node2])
         assert result.is_valid is False
         assert result.errors == (
-            ValidationError(message="expected unique node ids; found duplicates: [1]"),
-            ValidationError(message="expected exactly one root node; found 2: ['page00001', 'page00002']"),
-            ValidationError(message="parent ids absent from network: [99]"),
+            ValidationError(message="expected unique node ids; found duplicates: [1]", validator=has_unique_ids),
+            ValidationError(
+                message="expected exactly one root node; found 2: ['page00001', 'page00002']",
+                validator=has_single_root,
+            ),
+            ValidationError(
+                message="parent ids absent from network: [99]; referenced by nodes: [1]",
+                validator=all_parents_present,
+            ),
         )
 
     # ------------------------------------------------------------------
@@ -643,7 +691,11 @@ class TestIsTree:
         )
         result = is_tree([root, child], is_rooted=False)
         assert result.is_valid is False
-        assert ValidationError(message="parent ids absent from network: [88]") in result.errors
+        expected = ValidationError(
+            message="parent ids absent from network: [88]; referenced by nodes: [20]",
+            validator=all_parents_present,
+        )
+        assert expected in result.errors
 
     def test_not_rooted_default_is_rooted_true(self) -> None:
         """Test that omitting is_rooted rejects a subtree whose root has an external parent."""
@@ -652,7 +704,11 @@ class TestIsTree:
         )
         result = is_tree([root])
         assert result.is_valid is False
-        assert ValidationError(message="parent ids absent from network: [99]") in result.errors
+        expected = ValidationError(
+            message="parent ids absent from network: [99]; referenced by nodes: [10]",
+            validator=all_parents_present,
+        )
+        assert expected in result.errors
 
 
 class TestNodeTree:
