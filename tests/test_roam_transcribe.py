@@ -45,12 +45,20 @@ from conftest import FIXTURES_JSON_DIR, FIXTURES_YAML_DIR, STUB_TIME, STUB_USER,
 
 def _make_page(uid: str = "pageuid01", id: int = 100, title: str = "My Page") -> RoamNode:
     """Return a minimal page RoamNode."""
-    return RoamNode(uid=uid, id=id, time=STUB_TIME, user=STUB_USER, title=title)
+    return RoamNode(uid=uid, id=id, time=STUB_TIME, user=STUB_USER, title=title, children=[])
 
 
 def _make_image(uid: str = "imageuid1", id: int = 101, string: str = _IMAGE_STRING) -> RoamNode:
     """Return a minimal Firestore image-block RoamNode."""
-    return RoamNode(uid=uid, id=id, time=STUB_TIME, user=STUB_USER, string=string)
+    return RoamNode(
+        uid=uid,
+        id=id,
+        time=STUB_TIME,
+        user=STUB_USER,
+        string=string,
+        parents=[IdObject(id=99)],
+        page=IdObject(id=99),
+    )
 
 
 def _make_heading(
@@ -60,7 +68,16 @@ def _make_heading(
     heading: int = 2,
 ) -> RoamNode:
     """Return a minimal native-heading RoamNode."""
-    return RoamNode(uid=uid, id=id, time=STUB_TIME, user=STUB_USER, string=string, heading=heading)
+    return RoamNode(
+        uid=uid,
+        id=id,
+        time=STUB_TIME,
+        user=STUB_USER,
+        string=string,
+        heading=heading,
+        parents=[IdObject(id=99)],
+        page=IdObject(id=99),
+    )
 
 
 def _make_ah_heading(
@@ -70,7 +87,16 @@ def _make_ah_heading(
     level: str = "h4",
 ) -> RoamNode:
     """Return a minimal Augmented Headings RoamNode."""
-    return RoamNode(uid=uid, id=id, time=STUB_TIME, user=STUB_USER, string=string, props={"ah-level": level})
+    return RoamNode(
+        uid=uid,
+        id=id,
+        time=STUB_TIME,
+        user=STUB_USER,
+        string=string,
+        props={"ah-level": level},
+        parents=[IdObject(id=99)],
+        page=IdObject(id=99),
+    )
 
 
 def _make_text(
@@ -79,7 +105,15 @@ def _make_text(
     string: str = "Some plain text",
 ) -> RoamNode:
     """Return a minimal plain-text RoamNode."""
-    return RoamNode(uid=uid, id=id, time=STUB_TIME, user=STUB_USER, string=string)
+    return RoamNode(
+        uid=uid,
+        id=id,
+        time=STUB_TIME,
+        user=STUB_USER,
+        string=string,
+        parents=[IdObject(id=99)],
+        page=IdObject(id=99),
+    )
 
 
 def _id_map(*nodes: RoamNode) -> dict[Id, RoamNode]:
@@ -109,39 +143,93 @@ class TestIsImageNode:
 
     def test_returns_true_with_leading_trailing_whitespace(self) -> None:
         """Test that leading and trailing whitespace around the image link is tolerated."""
-        node = RoamNode(uid="imageuid1", id=101, time=STUB_TIME, user=STUB_USER, string=f"  {_IMAGE_STRING}  ")
+        node = RoamNode(
+            uid="imageuid1",
+            id=101,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string=f"  {_IMAGE_STRING}  ",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
+        )
         assert is_image_node(node) is True
 
     def test_returns_true_with_newline_in_alt_text(self) -> None:
         """Test that a newline inside alt text is accepted."""
         node = RoamNode(
-            uid="imageuid1", id=101, time=STUB_TIME, user=STUB_USER, string=f"![A flower\n        ]({_FIRESTORE_URL})"
+            uid="imageuid1",
+            id=101,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string=f"![A flower\n        ]({_FIRESTORE_URL})",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
         )
         assert is_image_node(node) is True
 
     def test_returns_true_with_empty_alt_text(self) -> None:
         """Test that empty alt text is accepted."""
-        node = RoamNode(uid="imageuid1", id=101, time=STUB_TIME, user=STUB_USER, string=f"![]({_FIRESTORE_URL})")
+        node = RoamNode(
+            uid="imageuid1",
+            id=101,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string=f"![]({_FIRESTORE_URL})",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
+        )
         assert is_image_node(node) is True
 
     def test_returns_false_for_text_before_image(self) -> None:
         """Test that any non-whitespace text before the image link returns False."""
-        node = RoamNode(uid="imageuid1", id=101, time=STUB_TIME, user=STUB_USER, string=f"see: {_IMAGE_STRING}")
+        node = RoamNode(
+            uid="imageuid1",
+            id=101,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string=f"see: {_IMAGE_STRING}",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
+        )
         assert is_image_node(node) is False
 
     def test_returns_false_for_text_after_image(self) -> None:
         """Test that any non-whitespace text after the image link returns False."""
-        node = RoamNode(uid="imageuid1", id=101, time=STUB_TIME, user=STUB_USER, string=f"{_IMAGE_STRING} caption")
+        node = RoamNode(
+            uid="imageuid1",
+            id=101,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string=f"{_IMAGE_STRING} caption",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
+        )
         assert is_image_node(node) is False
 
     def test_returns_false_for_two_consecutive_image_links(self) -> None:
         """Test that a string containing two image links returns False."""
-        node = RoamNode(uid="imageuid1", id=101, time=STUB_TIME, user=STUB_USER, string=_IMAGE_STRING * 2)
+        node = RoamNode(
+            uid="imageuid1",
+            id=101,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string=_IMAGE_STRING * 2,
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
+        )
         assert is_image_node(node) is False
 
     def test_returns_false_for_relative_url(self) -> None:
         """Test that a Markdown image with a relative URL (no http/https scheme) returns False."""
-        node = RoamNode(uid="imageuid1", id=101, time=STUB_TIME, user=STUB_USER, string="![alt](relative/path.jpg)")
+        node = RoamNode(
+            uid="imageuid1",
+            id=101,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="![alt](relative/path.jpg)",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
+        )
         assert is_image_node(node) is False
 
     def test_null_node_raises_validation_error(self) -> None:
@@ -178,11 +266,10 @@ class TestVertexType:
         """Test that a plain text block node classifies as ROAM_TEXT_CONTENT."""
         assert vertex_type(_make_text()) is VertexType.ROAM_TEXT_CONTENT
 
-    def test_node_with_neither_title_nor_string_raises_value_error(self) -> None:
-        """Test that a node missing both title and string raises ValueError."""
-        node = RoamNode(uid="badnode01", id=999, time=STUB_TIME, user=STUB_USER)
-        with pytest.raises(ValueError, match="neither 'title' nor 'string'"):
-            vertex_type(node)
+    def test_node_with_neither_title_nor_string_raises_validation_error(self) -> None:
+        """Test that constructing a node missing both title and string raises ValidationError."""
+        with pytest.raises(ValidationError):
+            RoamNode(uid="badnode01", id=999, time=STUB_TIME, user=STUB_USER)
 
     def test_null_node_raises_validation_error(self) -> None:
         """Test that passing None raises a ValidationError."""
@@ -220,8 +307,26 @@ class TestToPageVertex:
 
     def test_children_resolved_and_ordered_by_order_field(self) -> None:
         """Test that children are resolved from id_map and sorted ascending by their order field."""
-        child1 = RoamNode(uid="child0001", id=201, time=STUB_TIME, user=STUB_USER, string="c1", order=1)
-        child2 = RoamNode(uid="child0002", id=202, time=STUB_TIME, user=STUB_USER, string="c2", order=0)
+        child1 = RoamNode(
+            uid="child0001",
+            id=201,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="c1",
+            order=1,
+            parents=[IdObject(id=100)],
+            page=IdObject(id=100),
+        )
+        child2 = RoamNode(
+            uid="child0002",
+            id=202,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="c2",
+            order=0,
+            parents=[IdObject(id=100)],
+            page=IdObject(id=100),
+        )
         page = RoamNode(
             uid="pageuid01",
             id=100,
@@ -259,6 +364,7 @@ class TestToPageVertex:
             time=STUB_TIME,
             user=STUB_USER,
             title="My Page",
+            children=[],
             refs=[IdObject(id=301)],
         )
         v = to_page_vertex(page, _id_map(page, ref_node))
@@ -341,6 +447,8 @@ class TestToImageVertex:
             time=STUB_TIME,
             user=STUB_USER,
             string="![alt](https://example.com/image.jpg)",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
         )
         with pytest.raises(ValueError, match="contains no Firestore URL"):
             to_image_vertex(node, _id_map(node))
@@ -498,7 +606,16 @@ class TestTranscribeNode:
 
     def test_children_resolved_via_id_map(self) -> None:
         """Test that transcribe_node resolves children through the id_map."""
-        child = RoamNode(uid="child0001", id=201, time=STUB_TIME, user=STUB_USER, string="child", order=0)
+        child = RoamNode(
+            uid="child0001",
+            id=201,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="child",
+            order=0,
+            parents=[IdObject(id=100)],
+            page=IdObject(id=100),
+        )
         page = RoamNode(
             uid="pageuid01",
             id=100,
@@ -511,11 +628,10 @@ class TestTranscribeNode:
         assert isinstance(v, PageVertex)
         assert v.children == ["child0001"]
 
-    def test_node_with_neither_title_nor_string_raises_value_error(self) -> None:
-        """Test that a node missing both title and string raises ValueError."""
-        node = RoamNode(uid="badnode01", id=999, time=STUB_TIME, user=STUB_USER)
-        with pytest.raises(ValueError, match="neither 'title' nor 'string'"):
-            transcribe_node(node, _id_map(node))
+    def test_node_with_neither_title_nor_string_raises_validation_error(self) -> None:
+        """Test that constructing a node missing both title and string raises ValidationError."""
+        with pytest.raises(ValidationError):
+            RoamNode(uid="badnode01", id=999, time=STUB_TIME, user=STUB_USER)
 
     def test_null_node_raises_validation_error(self) -> None:
         """Test that passing None as node raises a ValidationError."""

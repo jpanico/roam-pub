@@ -35,7 +35,18 @@ def mock_200_response() -> MagicMock:
     mock.text = json.dumps(
         {
             "success": True,
-            "result": [[{"title": "My Page", "uid": "abc123xyz", "id": 1, "time": 1700000000000, "user": {"id": 3}}]],
+            "result": [
+                [
+                    {
+                        "title": "My Page",
+                        "uid": "abc123xyz",
+                        "id": 1,
+                        "time": 1700000000000,
+                        "user": {"id": 3},
+                        "children": [],
+                    }
+                ]
+            ],
         }
     )
     return mock
@@ -94,7 +105,9 @@ class TestFetchRoamNodesResponsePayload:
         """Test that a valid Payload can be constructed."""
         payload: FetchRoamNodes.Response.Payload = FetchRoamNodes.Response.Payload(
             success=True,
-            result=[[RoamNode(uid="abc123xyz", id=1, time=1700000000000, user=IdObject(id=3), title="My Page")]],
+            result=[
+                [RoamNode(uid="abc123xyz", id=1, time=1700000000000, user=IdObject(id=3), title="My Page", children=[])]
+            ],
         )
 
         assert payload.success is True
@@ -110,7 +123,18 @@ class TestFetchRoamNodesResponsePayload:
         """Test that a nested result dict is parsed into a list[list[RoamNode]]."""
         raw: dict[str, object] = {
             "success": True,
-            "result": [[{"title": "My Page", "uid": "abc123xyz", "id": 1, "time": 1700000000000, "user": {"id": 3}}]],
+            "result": [
+                [
+                    {
+                        "title": "My Page",
+                        "uid": "abc123xyz",
+                        "id": 1,
+                        "time": 1700000000000,
+                        "user": {"id": 3},
+                        "children": [],
+                    }
+                ]
+            ],
         }
 
         payload: FetchRoamNodes.Response.Payload = FetchRoamNodes.Response.Payload.model_validate(raw)
@@ -288,6 +312,7 @@ class TestFetchRoamNodesFetchByPageTitle:
                             "id": 1,
                             "time": 1700000000000,
                             "user": {"id": 3},
+                            "children": [{"id": 2}, {"id": 3}],
                         }
                     ],
                     [

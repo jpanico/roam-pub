@@ -91,6 +91,10 @@ def _format_node_prop(node: RoamNode, prop: str) -> str:
             return f"uid={node.uid}"
         case "id":
             return f"id={node.id}"
+        case "string":
+            return f"string={node.string}"
+        case "title":
+            return f"title={node.title}"
         case _:
             return f"{prop}=?"
 

@@ -35,29 +35,47 @@ class TestIsTree:
 
     def test_single_root_node_is_valid(self) -> None:
         """Test that a single parentless node satisfies all tree invariants."""
-        node = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER)
+        node = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
         result = is_tree([node])
         assert result.is_valid is True
 
     def test_two_node_tree_is_valid(self) -> None:
         """Test that a proper root→child pair satisfies all tree invariants."""
-        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=10)])
-        child = RoamNode(uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, parents=[IdObject(id=1)])
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)])
+        child = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="stub",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
         result = is_tree([root, child])
         assert result.is_valid is True
 
     def test_three_node_chain_is_valid(self) -> None:
         """Test that a three-node linear chain satisfies all tree invariants."""
-        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=10)])
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)])
         mid = RoamNode(
             uid="block0001",
             id=10,
             time=STUB_TIME,
             user=STUB_USER,
+            string="stub",
             parents=[IdObject(id=1)],
+            page=IdObject(id=1),
             children=[IdObject(id=20)],
         )
-        leaf = RoamNode(uid="block0002", id=20, time=STUB_TIME, user=STUB_USER, parents=[IdObject(id=10)])
+        leaf = RoamNode(
+            uid="block0002",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="stub",
+            parents=[IdObject(id=10)],
+            page=IdObject(id=1),
+        )
         result = is_tree([root, mid, leaf])
         assert result.is_valid is True
 
@@ -67,7 +85,7 @@ class TestIsTree:
 
     def test_self_loop_returns_invalid(self) -> None:
         """Test that a self-loop violates is_acyclic and returns an invalid result."""
-        node = RoamNode(uid="cycleA001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=1)])
+        node = RoamNode(uid="cycleA001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=1)])
         result = is_tree([node])
         assert result.is_valid is False
         assert result.errors == (
@@ -79,7 +97,9 @@ class TestIsTree:
 
     def test_missing_child_returns_invalid(self) -> None:
         """Test that an absent child reference violates all_children_present and returns an invalid result."""
-        parent = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=99)])
+        parent = RoamNode(
+            uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=99)]
+        )
         result = is_tree([parent])
         assert result.is_valid is False
         assert result.errors == (
@@ -91,8 +111,8 @@ class TestIsTree:
 
     def test_two_roots_returns_invalid(self) -> None:
         """Test that two parentless nodes violate has_single_root and return an invalid result."""
-        node1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER)
-        node2 = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER)
+        node1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        node2 = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
         result = is_tree([node1, node2])
         assert result.is_valid is False
         assert result.errors == (
@@ -107,8 +127,24 @@ class TestIsTree:
         # duplicate id=1 → has_unique_ids fails
         # both nodes have parents=[id=99] (absent from network) → both treated as roots → has_single_root fails
         # all_parents_present fails because id=99 is absent from network
-        node1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, parents=[IdObject(id=99)])
-        node2 = RoamNode(uid="page00002", id=1, time=STUB_TIME, user=STUB_USER, parents=[IdObject(id=99)])
+        node1 = RoamNode(
+            uid="page00001",
+            id=1,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="stub",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
+        )
+        node2 = RoamNode(
+            uid="page00002",
+            id=1,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="stub",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
+        )
         result = is_tree([node1, node2])
         assert result.is_valid is False
         assert result.errors == (
@@ -131,7 +167,13 @@ class TestIsTree:
         """Test that a node-UID subtree with an external root parent is valid when is_standalone=False."""
         # root's parent (id=99) is outside the network — allowed when is_standalone=False
         root = RoamNode(
-            uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, string="root", parents=[IdObject(id=99)]
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="root",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
         )
         child = RoamNode(
             uid="block0002",
@@ -140,6 +182,7 @@ class TestIsTree:
             user=STUB_USER,
             string="child",
             parents=[IdObject(id=10)],
+            page=IdObject(id=99),
             children=[],
         )
         result = is_tree([root, child], is_standalone=False)
@@ -156,6 +199,7 @@ class TestIsTree:
             user=STUB_USER,
             string="root",
             parents=[IdObject(id=99)],
+            page=IdObject(id=99),
             children=[IdObject(id=20)],
         )
         child = RoamNode(
@@ -165,6 +209,7 @@ class TestIsTree:
             user=STUB_USER,
             string="child",
             parents=[IdObject(id=10), IdObject(id=88)],
+            page=IdObject(id=99),
         )
         result = is_tree([root, child], is_standalone=False)
         assert result.is_valid is False
@@ -177,7 +222,13 @@ class TestIsTree:
     def test_not_rooted_default_is_rooted_true(self) -> None:
         """Test that omitting is_standalone rejects a subtree whose root has an external parent."""
         root = RoamNode(
-            uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, string="root", parents=[IdObject(id=99)]
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="root",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
         )
         result = is_tree([root])
         assert result.is_valid is False
@@ -207,15 +258,22 @@ class TestNodeTreeDFSIterator:
 
     def test_single_node_tree_yields_root(self) -> None:
         """Test that a one-node tree yields only the root node."""
-        root = RoamNode(uid="root00001", id=1, time=STUB_TIME, user=STUB_USER)
+        root = RoamNode(uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
         tree = NodeTree(network=[root])
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001"]
 
     def test_two_node_tree_yields_root_then_child(self) -> None:
         """Test that a root→child tree yields root first, then child."""
-        root = RoamNode(uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=10)])
+        root = RoamNode(uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)])
         child = RoamNode(
-            uid="chld00001", id=10, time=STUB_TIME, user=STUB_USER, string="c", order=0, parents=[IdObject(id=1)]
+            uid="chld00001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="c",
+            order=0,
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
         )
         tree = NodeTree(network=[root, child])
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "chld00001"]
@@ -223,14 +281,33 @@ class TestNodeTreeDFSIterator:
     def test_children_yielded_in_ascending_order_field(self) -> None:
         """Test that children are visited in ascending order-field order, not id order."""
         root = RoamNode(
-            uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=10), IdObject(id=20)]
+            uid="root00001",
+            id=1,
+            time=STUB_TIME,
+            user=STUB_USER,
+            title="stub",
+            children=[IdObject(id=10), IdObject(id=20)],
         )
         # id=20 has order=0 so it should come first despite having the larger id
         child_first = RoamNode(
-            uid="chld00002", id=20, time=STUB_TIME, user=STUB_USER, string="first", order=0, parents=[IdObject(id=1)]
+            uid="chld00002",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="first",
+            order=0,
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
         )
         child_second = RoamNode(
-            uid="chld00001", id=10, time=STUB_TIME, user=STUB_USER, string="second", order=1, parents=[IdObject(id=1)]
+            uid="chld00001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="second",
+            order=1,
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
         )
         tree = NodeTree(network=[root, child_first, child_second])
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "chld00002", "chld00001"]
@@ -238,7 +315,12 @@ class TestNodeTreeDFSIterator:
     def test_preorder_visits_subtree_before_sibling(self) -> None:
         """Test that a child's full subtree is visited before the next sibling (pre-order)."""
         root = RoamNode(
-            uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=10), IdObject(id=20)]
+            uid="root00001",
+            id=1,
+            time=STUB_TIME,
+            user=STUB_USER,
+            title="stub",
+            children=[IdObject(id=10), IdObject(id=20)],
         )
         node_a = RoamNode(
             uid="nodeA0001",
@@ -248,13 +330,28 @@ class TestNodeTreeDFSIterator:
             string="A",
             order=0,
             parents=[IdObject(id=1)],
+            page=IdObject(id=1),
             children=[IdObject(id=11)],
         )
         node_a1 = RoamNode(
-            uid="nodeA1001", id=11, time=STUB_TIME, user=STUB_USER, string="A1", order=0, parents=[IdObject(id=10)]
+            uid="nodeA1001",
+            id=11,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="A1",
+            order=0,
+            parents=[IdObject(id=10)],
+            page=IdObject(id=1),
         )
         node_b = RoamNode(
-            uid="nodeB0001", id=20, time=STUB_TIME, user=STUB_USER, string="B", order=1, parents=[IdObject(id=1)]
+            uid="nodeB0001",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="B",
+            order=1,
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
         )
         tree = NodeTree(network=[root, node_a, node_a1, node_b])
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "nodeA0001", "nodeA1001", "nodeB0001"]
@@ -262,13 +359,32 @@ class TestNodeTreeDFSIterator:
     def test_all_nodes_yielded_exactly_once(self) -> None:
         """Test that every node in the tree is yielded exactly once with no duplicates."""
         root = RoamNode(
-            uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, children=[IdObject(id=10), IdObject(id=20)]
+            uid="root00001",
+            id=1,
+            time=STUB_TIME,
+            user=STUB_USER,
+            title="stub",
+            children=[IdObject(id=10), IdObject(id=20)],
         )
         child_a = RoamNode(
-            uid="chld00001", id=10, time=STUB_TIME, user=STUB_USER, string="a", order=0, parents=[IdObject(id=1)]
+            uid="chld00001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="a",
+            order=0,
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
         )
         child_b = RoamNode(
-            uid="chld00002", id=20, time=STUB_TIME, user=STUB_USER, string="b", order=1, parents=[IdObject(id=1)]
+            uid="chld00002",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="b",
+            order=1,
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
         )
         tree = NodeTree(network=[root, child_a, child_b])
         yielded: list[RoamNode] = list(NodeTreeDFSIterator(tree))
@@ -277,7 +393,7 @@ class TestNodeTreeDFSIterator:
 
     def test_iterator_exhausted_raises_stop_iteration(self) -> None:
         """Test that __next__ raises StopIteration once all nodes have been yielded."""
-        root = RoamNode(uid="root00001", id=1, time=STUB_TIME, user=STUB_USER)
+        root = RoamNode(uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
         tree = NodeTree(network=[root])
         it: NodeTreeDFSIterator = NodeTreeDFSIterator(tree)
         assert next(it).uid == "root00001"

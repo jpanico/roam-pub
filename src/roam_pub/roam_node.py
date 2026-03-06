@@ -20,7 +20,7 @@ Public symbols:
 import logging
 from typing import Final
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from roam_pub.roam_primitives import (
     HeadingLevel,
@@ -45,9 +45,17 @@ class RoamNode(BaseModel):
     This is the *un-normalized* form — property names mirror the raw Datomic
     attribute names, and nested refs are still IdObject stubs rather than resolved UIDs.
 
-    All fields are optional except ``uid``, ``id``, ``time``, and ``user``,
-    because the set of attributes present depends on the entity type (Page vs.
-    Block) and which optional features (heading, text-align, etc.) were ever set.
+    Every pull-block is one of two mutually exclusive entity types, discriminated by
+    which of ``title`` / ``string`` is set.  The following invariants are enforced at
+    construction time by :meth:`_validate_entity_type`:
+
+    - **Page**: ``title`` set, ``string`` ``None``, ``parents`` ``None``,
+      ``children`` set, ``page`` ``None``.
+    - **Block**: ``string`` set, ``title`` ``None``, ``parents`` set,
+      ``page`` set, ``children`` any.
+
+    All remaining fields (``heading``, ``open``, ``sidebar``, ``refs``, etc.) are
+    optional and vary by entity type and feature usage.
 
     Attributes:
         uid: Nine-character stable block/page identifier (BLOCK_UID). Required.
@@ -130,6 +138,46 @@ class RoamNode(BaseModel):
     seen_by: list[IdObject] | None = Field(
         default=None, description=f"{RoamAttribute.EDIT_SEEN_BY} — users who have seen this block (purpose unclear)"
     )
+
+    @model_validator(mode="after")
+    def _validate_entity_type(self) -> RoamNode:
+        """Enforce Page/Block entity-type invariants.
+
+        Returns:
+            The validated instance.
+
+        Raises:
+            ValueError: If the instance violates the Page or Block field invariants,
+                or if neither ``title`` nor ``string`` is set.
+        """
+        if self.title is not None:
+            page_violations: Final[list[str]] = []
+            if self.string is not None:
+                page_violations.append(f"string must be None; got {self.string!r}")
+            if self.parents is not None:
+                page_violations.append("parents must be None")
+            if self.children is None:
+                page_violations.append("children must be set")
+            if self.page is not None:
+                page_violations.append("page must be None")
+            if page_violations:
+                raise ValueError(f"Page entity (uid={self.uid!r}) constraint violations: {'; '.join(page_violations)}")
+        elif self.string is not None:
+            block_violations: Final[list[str]] = []
+            if self.parents is None:
+                block_violations.append("parents must be set")
+            if self.page is None:
+                block_violations.append("page must be set")
+            if block_violations:
+                raise ValueError(
+                    f"Block entity (uid={self.uid!r}) constraint violations: {'; '.join(block_violations)}"
+                )
+        else:
+            raise ValueError(
+                f"RoamNode (uid={self.uid!r}) must be a Page (title set) or a Block (string set); "
+                "got title=None, string=None"
+            )
+        return self
 
 
 type NodeNetwork = list[RoamNode]

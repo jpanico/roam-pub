@@ -154,7 +154,8 @@ def main(
             help=(
                 "Comma-separated list of RoamNode property names to include in each panel body. "
                 f"Example: --node-props heading,parents. "
-                f"Defaults to: {','.join(DEFAULT_NODE_PANEL_PROPS)}."
+                f"Defaults to: {','.join(DEFAULT_NODE_PANEL_PROPS)}. "
+                'Unrecognized names are shown as "name=?" in the panel body.'
             ),
         ),
     ] = None,
