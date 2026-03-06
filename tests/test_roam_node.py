@@ -4,6 +4,7 @@ import pytest
 
 from roam_pub.roam_node import (
     NodeNetwork,
+    NodeType,
     RoamNode,
     all_children_present,
     all_parents_present,
@@ -11,6 +12,7 @@ from roam_pub.roam_node import (
     has_unique_ids,
     is_acyclic,
     is_root,
+    node_type,
 )
 from roam_pub.roam_primitives import IdObject
 from roam_pub.validation import ValidationError
@@ -1016,3 +1018,76 @@ class TestRoamNodeProps:
         )
         with pytest.raises(Exception):
             node.props = None  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# TestNodeType
+# ---------------------------------------------------------------------------
+
+
+class TestNodeType:
+    """Tests for the NodeType enum."""
+
+    def test_page_value(self) -> None:
+        """Test that NodeType.Page has string value 'Page'."""
+        assert NodeType.Page == "Page"
+
+    def test_block_value(self) -> None:
+        """Test that NodeType.Block has string value 'Block'."""
+        assert NodeType.Block == "Block"
+
+    def test_exactly_two_members(self) -> None:
+        """Test that NodeType has exactly two members."""
+        assert set(NodeType) == {NodeType.Page, NodeType.Block}
+
+
+# ---------------------------------------------------------------------------
+# TestNodeTypeFunction
+# ---------------------------------------------------------------------------
+
+
+class TestNodeTypeFunction:
+    """Tests for the node_type() function."""
+
+    def test_page_node_returns_page(self) -> None:
+        """Test that a node with title set returns NodeType.Page."""
+        node = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="My Page", children=[])
+        assert node_type(node) is NodeType.Page
+
+    def test_block_node_returns_block(self) -> None:
+        """Test that a node with string set returns NodeType.Block."""
+        node = RoamNode(
+            uid="block0001",
+            id=2,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="block text",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
+        )
+        assert node_type(node) is NodeType.Block
+
+    def test_page_node_is_not_block(self) -> None:
+        """Test that a page node does not return NodeType.Block."""
+        node = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="My Page", children=[])
+        assert node_type(node) is not NodeType.Block
+
+    def test_block_node_is_not_page(self) -> None:
+        """Test that a block node does not return NodeType.Page."""
+        node = RoamNode(
+            uid="block0001",
+            id=2,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="block text",
+            parents=[IdObject(id=99)],
+            page=IdObject(id=99),
+        )
+        assert node_type(node) is not NodeType.Page
+
+    def test_result_is_str_enum(self) -> None:
+        """Test that the returned value is a NodeType StrEnum member."""
+        node = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="My Page", children=[])
+        result = node_type(node)
+        assert isinstance(result, NodeType)
+        assert isinstance(result, str)

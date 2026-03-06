@@ -2,6 +2,7 @@
 
 Public symbols:
 
+- :class:`NodeType` — ``StrEnum`` of pull-block entity types: ``Page``, ``Block``.
 - :class:`RoamNode` — raw shape of a pull-block as returned by the Roam Local API.
 - :data:`NodeNetwork` — a collection of :class:`RoamNode` instances.
 - :func:`is_root` — return ``True`` when a node has no ancestors inside a :data:`NodeNetwork`.
@@ -15,8 +16,10 @@ Public symbols:
   in a :data:`NodeNetwork` to be unique.
 - :func:`is_acyclic` — :data:`~roam_pub.validation.Validator` requiring the child-edge graph of a
   :data:`NodeNetwork` to be cycle-free.
+- :func:`node_type` — return the :class:`NodeType` of a :class:`RoamNode`.
 """
 
+import enum
 import logging
 from typing import Final
 
@@ -37,6 +40,13 @@ from roam_pub.roam_schema import RoamAttribute
 from roam_pub.validation import ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+class NodeType(enum.StrEnum):
+    """Entity type of a Roam pull-block, discriminated by which of ``title`` / ``string`` is set."""
+
+    Page = "Page"
+    Block = "Block"
 
 
 class RoamNode(BaseModel):
@@ -178,6 +188,23 @@ class RoamNode(BaseModel):
                 "got title=None, string=None"
             )
         return self
+
+
+def node_type(node: RoamNode) -> NodeType:
+    """Return the :class:`NodeType` of *node*.
+
+    Discriminates on :attr:`~RoamNode.title`: returns :attr:`NodeType.Page` when
+    ``title`` is set, and :attr:`NodeType.Block` otherwise.  The
+    :meth:`~RoamNode._validate_entity_type` validator guarantees that every
+    :class:`RoamNode` instance satisfies exactly one of these cases.
+
+    Args:
+        node: The node whose entity type to determine.
+
+    Returns:
+        :attr:`NodeType.Page` if *node* has a ``title``; :attr:`NodeType.Block` otherwise.
+    """
+    return NodeType.Page if node.title is not None else NodeType.Block
 
 
 type NodeNetwork = list[RoamNode]
