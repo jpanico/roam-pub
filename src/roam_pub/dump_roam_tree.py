@@ -52,13 +52,12 @@ from rich.console import Console
 from rich.tree import Tree as RichTree
 
 from roam_pub.rich import DEFAULT_NODE_PANEL_PROPS, build_rich_node_tree, build_rich_vertex_tree
+from roam_pub.roam_cli import fetch_roam_trees
 from roam_pub.roam_graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.logging_config import configure_logging
-from roam_pub.roam_node import NodeTree, RoamNode
-from roam_pub.roam_node_fetch import FetchRoamNodes, TargetKind
-from roam_pub.roam_primitives import UID_PATTERN, UID_RE
-from roam_pub.roam_transcribe import transcribe
+from roam_pub.roam_node import NodeTree
+from roam_pub.roam_primitives import UID_PATTERN
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -189,23 +188,9 @@ def main(
         bearer_token=api_bearer_token,
     )
 
-    target_kind: Final[TargetKind] = TargetKind.node if UID_RE.match(target) else TargetKind.page
-    logger.debug("target_kind=%r", target_kind)
-    try:
-        nodes: Final[list[RoamNode]] = FetchRoamNodes.fetch_roam_nodes(
-            target=target, target_kind=target_kind, api_endpoint=api_endpoint
-        )
-    except Exception as e:
-        logger.error("Error fetching %r: %s", target, e)
-        raise typer.Exit(code=1)
-
-    if not nodes:
-        logger.info("No Roam nodes found for %r — nothing to dump.", target)
-        raise typer.Exit(code=1)
-
-    node_tree: Final[NodeTree] = NodeTree(network=nodes, is_standalone=target_kind is TargetKind.page)
-    vertex_tree: Final[VertexTree] = transcribe(node_tree)
-    logger.debug("node_tree=%r\n\nvertex_tree=%r", node_tree, vertex_tree)
+    trees: Final[tuple[NodeTree, VertexTree]] = fetch_roam_trees(target, api_endpoint)
+    node_tree: Final[NodeTree] = trees[0]
+    vertex_tree: Final[VertexTree] = trees[1]
     dump_trees(node_tree=node_tree, vertex_tree=vertex_tree, node_props=node_props, mode=mode)
 
 

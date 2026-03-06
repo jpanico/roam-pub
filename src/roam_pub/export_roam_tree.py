@@ -40,19 +40,18 @@ Example::
 
 import logging
 import pathlib
-from typing import Annotated
+from typing import Annotated, Final
 
 import typer
 
 from roam_pub.logging_config import configure_logging
+from roam_pub.roam_cli import fetch_roam_trees
 from roam_pub.roam_graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_md_bundle import bundle_md_document
-from roam_pub.roam_node import NodeTree, RoamNode
-from roam_pub.roam_node_fetch import FetchRoamNodes, TargetKind
-from roam_pub.roam_primitives import UID_PATTERN, UID_RE
+from roam_pub.roam_node import NodeTree
+from roam_pub.roam_primitives import UID_PATTERN
 from roam_pub.roam_render_md import render
-from roam_pub.roam_transcribe import transcribe
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -149,30 +148,15 @@ def main(
         bundle,
         cache_dir,
     )
-    api_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
+    api_endpoint: Final[ApiEndpoint] = ApiEndpoint.from_parts(
         local_api_port=local_api_port,
         graph_name=graph_name,
         bearer_token=api_bearer_token,
     )
 
-    target_kind: TargetKind = TargetKind.node if UID_RE.match(target) else TargetKind.page
-    try:
-        nodes: list[RoamNode] = FetchRoamNodes.fetch_roam_nodes(
-            target=target, target_kind=target_kind, api_endpoint=api_endpoint
-        )
-    except Exception as e:
-        logger.error("Error fetching %r: %s", target, e)
-        raise typer.Exit(code=1)
-
-    if not nodes:
-        logger.info("No Roam nodes found for %r — nothing to export.", target)
-        raise typer.Exit(code=1)
-
-    node_tree: NodeTree = NodeTree(network=nodes)
-    vertex_tree: VertexTree = transcribe(node_tree)
-    logger.debug("vertex_tree=%r", vertex_tree)
-
-    md_document: str = render(vertex_tree)
+    trees: Final[tuple[NodeTree, VertexTree]] = fetch_roam_trees(target, api_endpoint)
+    vertex_tree: Final[VertexTree] = trees[1]
+    md_document: Final[str] = render(vertex_tree)
 
     if bundle:
         try:
@@ -188,7 +172,7 @@ def main(
             raise typer.Exit(code=1)
     else:
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_path: pathlib.Path = output_dir / f"{target}.md"
+        output_path: Final[pathlib.Path] = output_dir / f"{target}.md"
         output_path.write_text(md_document)
         logger.info("Wrote CommonMark document to %s", output_path)
 

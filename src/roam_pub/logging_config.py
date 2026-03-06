@@ -70,6 +70,6 @@ def configure_logging() -> None:
         )
     )
     logging.basicConfig(
-        level=os.environ.get("LOG_LEVEL", "DEBUG").upper(),
+        level=os.environ.get("LOG_LEVEL", "INFO").upper(),
         handlers=[handler],
     )
