@@ -52,7 +52,7 @@ from rich.console import Console
 from rich.tree import Tree as RichTree
 
 from roam_pub.rich import DEFAULT_NODE_PANEL_PROPS, build_rich_node_tree, build_rich_vertex_tree
-from roam_pub.roam_cli import fetch_roam_trees
+from roam_pub.roam_tree_loader import fetch_roam_trees
 from roam_pub.roam_graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.logging_config import configure_logging

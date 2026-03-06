@@ -45,7 +45,7 @@ from typing import Annotated, Final
 import typer
 
 from roam_pub.logging_config import configure_logging
-from roam_pub.roam_cli import fetch_roam_trees
+from roam_pub.roam_tree_loader import fetch_roam_trees
 from roam_pub.roam_graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_md_bundle import bundle_md_document

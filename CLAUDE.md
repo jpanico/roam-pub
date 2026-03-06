@@ -32,7 +32,7 @@ pytest                            # run tests
   - **CLI entry points**
     - `dump_roam_tree.py` — dumps a Roam page or node subtree as a Rich tree to the terminal (`--mode v|n|vn`)
     - `export_roam_tree.py` — exports a Roam page or node subtree to a `.mdbundle` (default) or plain `.md` (`--no-bundle`); target is a page title or node UID (`export-roam-tree`)
-    - `roam_cli.py` — shared CLI utilities; `fetch_roam_trees` resolves a target, fetches nodes, and returns a `(NodeTree, VertexTree)` pair
+    - `roam_tree_loader.py` — shared tree-loading pipeline; `fetch_roam_trees` resolves a target, fetches nodes, and returns a `(NodeTree, VertexTree)` pair
   - **Core logic**
     - `roam_md_bundle.py` — core bundling logic
     - `roam_md_normalize.py` — normalizes Roam-flavored Markdown strings to CommonMark

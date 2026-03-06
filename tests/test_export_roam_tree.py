@@ -25,7 +25,7 @@ class TestExportRoamTreeNoBundle:
         runner: CliRunner = CliRunner()
 
         with patch(
-            "roam_pub.roam_cli.FetchRoamNodes.fetch_roam_nodes",
+            "roam_pub.roam_tree_loader.FetchRoamNodes.fetch_roam_nodes",
             return_value=nodes,
         ):
             # configure_logging() runs at import time and installs a StreamHandler
