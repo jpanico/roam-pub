@@ -52,7 +52,7 @@ from rich.console import Console
 from rich.tree import Tree as RichTree
 
 from roam_pub.rich_rendering import DEFAULT_NODE_PANEL_PROPS, build_rich_node_tree, build_rich_vertex_tree
-from roam_pub.roam_node_fetch_result import NodeFetchTarget
+from roam_pub.roam_node_fetch_result import NodeFetchAnchor
 from roam_pub.roam_tree_loader import fetch_roam_trees
 from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
@@ -203,7 +203,7 @@ def main(
     )
 
     trees: Final[tuple[NodeTree, VertexTree]] = fetch_roam_trees(
-        NodeFetchTarget(target=target), api_endpoint, include_refs=include_refs
+        NodeFetchAnchor(target=target), api_endpoint, include_refs=include_refs
     )
     node_tree: Final[NodeTree] = trees[0]
     vertex_tree: Final[VertexTree] = trees[1]

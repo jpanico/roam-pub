@@ -4,7 +4,7 @@ Public symbols:
 
 - :class:`FetchRoamNodes` — stateless utility class that fetches all Roam nodes
   by various criteria via the Local API's ``data.q`` action, including
-  :meth:`~FetchRoamNodes.fetch_roam_nodes` which auto-detects whether *target*
+  :meth:`~FetchRoamNodes.fetch_roam_nodes` which auto-detects whether *anchor*
   is a page title or a node UID.
 """
 
@@ -21,7 +21,7 @@ from roam_pub.roam_local_api import (
     invoke_action,
 )
 from roam_pub.roam_node import RoamNode
-from roam_pub.roam_node_fetch_result import FetchTargetKind, NodeFetchResult, NodeFetchTarget
+from roam_pub.roam_node_fetch_result import QueryAnchorKind, NodeFetchResult, NodeFetchAnchor
 from roam_pub.roam_primitives import Uid
 
 logger = logging.getLogger(__name__)
@@ -49,6 +49,14 @@ class FetchRoamNodes:
         properties only appear in the result when they have actually been set on a given
         block; absent block properties are silently omitted, and
         :attr:`~roam_pub.roam_node.RoamNode.props` will be ``None`` for those nodes.
+
+        **Anchor node**: each query opens with a single data pattern clause that binds a
+        variable named ``?anchor`` to the node whose attribute matches the caller-supplied
+        input variable (``?title`` for page-title queries, ``?uid`` for node-UID queries).
+        All subsequent traversal — descendants via ``(descendant ?anchor ?node)`` and page
+        references via ``(page-ref ?anchor ?node)`` — radiates outward from ``?anchor``.
+        The ``or-join`` join-variable list always includes ``?anchor`` to ensure Datomic
+        treats it as the outer binding rather than a fresh free variable.
         """
 
         _DESCENDANT_CLAUSES: Final[str] = textwrap.indent(
@@ -74,13 +82,6 @@ class FetchRoamNodes:
 
         Query constants that reference ``(descendant ?parent ?child)`` pass this vector as
         the ``%`` rules binding to resolve the rule at query time.
-
-        ``or-join`` scoping: the root variable (``?page`` or ``?root``) must appear in the
-        join-variable list *and* be re-bound inside each branch.  Variables from the outer
-        ``:where`` clause that are absent from the join-variable list are treated as fresh
-        free variables inside the ``or-join`` — not as the outer binding.  Omitting the root
-        variable would cause ``(descendant ?root ?node)`` to match every descendant pair in
-        the entire graph, returning the full database instead of the target subtree.
         """
 
         PAGE_REF_RULE: Final[str] = f"[\n{_PAGE_REF_CLAUSES}\n]"
@@ -108,29 +109,36 @@ class FetchRoamNodes:
             [:find (pull ?node [*])
              :in $ ?title %
              :where
-             [?page :node/title ?title]
-             (or-join [?page ?node]
-               (and [?page :node/title ?title]
+             [?anchor :node/title ?title]
+             (or-join [?anchor ?node]
+               (and [?anchor :node/title ?title]
                     [?node :node/title ?title])
-               (and [?page :node/title ?title]
-                    (descendant ?page ?node))""")
+               (and [?anchor :node/title ?title]
+                    (descendant ?anchor ?node))""")
         _PAGE_REF_OR_JOIN_BRANCH: Final[str] = textwrap.indent(
             textwrap.dedent("""\
-                (and [?page :node/title ?title]
-                     (page-ref ?page ?node))"""),
+                (and [?anchor :node/title ?title]
+                     (page-ref ?anchor ?node))"""),
             "   ",
         )
         BY_PAGE_TITLE_QUERY: Final[str] = f"{_BY_PAGE_TITLE_QUERY_BASE})]"
         """Datalog query fetching a page and all its descendant blocks by page title.
 
         Input bindings: ``?title`` (page title string) and ``%`` (rules vector —
-        :attr:`DESCENDANT_RULE`).  See :attr:`DESCENDANT_RULE` for the traversal structure.
+        :attr:`DESCENDANT_RULE`).
 
         The ``or-join`` has two branches:
 
-        1. The page node itself (``?node = ?page``).
-        2. Every block reachable from ``?page`` through ``:block/children`` at any depth
+        1. The anchor node itself (``?node = ?anchor``).
+        2. Every block reachable from ``?anchor`` through ``:block/children`` at any depth
            (via the ``descendant`` rule).
+
+        ``or-join`` scoping: ``?anchor`` must appear in the join-variable list
+        ``[?anchor ?node]`` *and* be re-bound inside each branch.  Variables from the outer
+        ``:where`` clause absent from the join-variable list are treated as fresh free
+        variables inside the ``or-join`` — not as the outer binding.  Omitting ``?anchor``
+        would cause ``(descendant ?anchor ?node)`` to match every descendant pair in the
+        entire graph, returning the full database instead of the target subtree.
 
         To also include nodes referenced via ``:block/refs``, use
         :attr:`BY_PAGE_TITLE_WITH_REFS_QUERY` instead.
@@ -146,10 +154,10 @@ class FetchRoamNodes:
 
         The ``or-join`` has three branches:
 
-        1. The page node itself (``?node = ?page``).
-        2. Every block reachable from ``?page`` through ``:block/children`` at any depth
+        1. The anchor node itself (``?node = ?anchor``).
+        2. Every block reachable from ``?anchor`` through ``:block/children`` at any depth
            (via the ``descendant`` rule).
-        3. Every node referenced via ``:block/refs`` from ``?page`` directly or from any of
+        3. Every node referenced via ``:block/refs`` from ``?anchor`` directly or from any of
            its descendants (via the ``page-ref`` rule).
         """
 
@@ -157,17 +165,29 @@ class FetchRoamNodes:
             [:find (pull ?node [*])
              :in $ ?uid %
              :where
-             [?root :block/uid ?uid]
-             (or-join [?root ?node]
-               (and [?root :block/uid ?uid]
+             [?anchor :block/uid ?uid]
+             (or-join [?anchor ?node]
+               (and [?anchor :block/uid ?uid]
                     [?node :block/uid ?uid])
-               (and [?root :block/uid ?uid]
-                    (descendant ?root ?node)))]""")
+               (and [?anchor :block/uid ?uid]
+                    (descendant ?anchor ?node)))]""")
         """Datalog query fetching a node and all its descendant blocks by ``:block/uid``.
 
         Input bindings: ``?uid`` (nine-character ``:block/uid`` string) and ``%`` (rules
-        vector — :attr:`DESCENDANT_RULE`).  See :attr:`DESCENDANT_RULE` for the traversal
-        structure.
+        vector — :attr:`DESCENDANT_RULE`).
+
+        The ``or-join`` has two branches:
+
+        1. The anchor node itself (``?node = ?anchor``).
+        2. Every block reachable from ``?anchor`` through ``:block/children`` at any depth
+           (via the ``descendant`` rule).
+
+        ``or-join`` scoping: ``?anchor`` must appear in the join-variable list
+        ``[?anchor ?node]`` *and* be re-bound inside each branch.  Variables from the outer
+        ``:where`` clause absent from the join-variable list are treated as fresh free
+        variables inside the ``or-join`` — not as the outer binding.  Omitting ``?anchor``
+        would cause ``(descendant ?anchor ?node)`` to match every descendant pair in the
+        entire graph, returning the full database instead of the target subtree.
         """
 
         @staticmethod
@@ -269,7 +289,7 @@ class FetchRoamNodes:
     @staticmethod
     @validate_call
     def fetch_by_page_title(
-        target: NodeFetchTarget, api_endpoint: ApiEndpoint, include_refs: bool = False
+        anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False
     ) -> NodeFetchResult:
         """Fetch all Roam nodes matching the given page title from the Roam Research Local API.
 
@@ -278,8 +298,8 @@ class FetchRoamNodes:
         graph.
 
         Args:
-            target: The resolved fetch target whose
-                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchTarget.target` string is
+            anchor: The resolved fetch anchor whose
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchAnchor.target` string is
                 the exact title of the Roam page to fetch.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
             include_refs: When ``True``, also returns every node referenced via
@@ -297,22 +317,22 @@ class FetchRoamNodes:
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.
-            ValueError: If ``target.kind`` is not :attr:`~roam_pub.roam_node_fetch_result.FetchTargetKind.PAGE_TITLE`.
+            ValueError: If ``anchor.kind`` is not :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.PAGE_TITLE`.
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug("api_endpoint: %s, target: %r, include_refs: %r", api_endpoint, target.target, include_refs)
-        if target.kind is not FetchTargetKind.PAGE_TITLE:
-            raise ValueError(f"expected target.kind=FetchTargetKind.PAGE_TITLE; got {target.kind!r}")
+        logger.debug("api_endpoint: %s, anchor: %r, include_refs: %r", api_endpoint, anchor.target, include_refs)
+        if anchor.kind is not QueryAnchorKind.PAGE_TITLE:
+            raise ValueError(f"expected anchor.kind=QueryAnchorKind.PAGE_TITLE; got {anchor.kind!r}")
         return FetchRoamNodes._fetch(
-            FetchRoamNodes.Request.payload_by_page_title(target.target, include_refs=include_refs),
+            FetchRoamNodes.Request.payload_by_page_title(anchor.target, include_refs=include_refs),
             api_endpoint,
-            f"page_title={target.target!r}",
+            f"page_title={anchor.target!r}",
         )
 
     @staticmethod
     @validate_call
-    def fetch_by_node_uid(target: NodeFetchTarget, api_endpoint: ApiEndpoint) -> NodeFetchResult:
+    def fetch_by_node_uid(anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint) -> NodeFetchResult:
         """Fetch the Roam node with the given UID and all its descendants from the Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -320,8 +340,8 @@ class FetchRoamNodes:
         graph.
 
         Args:
-            target: The resolved fetch target whose
-                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchTarget.target` string is
+            anchor: The resolved fetch anchor whose
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchAnchor.target` string is
                 the nine-character ``:block/uid`` of the root node to fetch.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
@@ -335,35 +355,35 @@ class FetchRoamNodes:
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.
-            ValueError: If ``target.kind`` is not :attr:`~roam_pub.roam_node_fetch_result.FetchTargetKind.NODE_UID`.
+            ValueError: If ``anchor.kind`` is not :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.NODE_UID`.
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug("api_endpoint: %s, target: %r", api_endpoint, target.target)
-        if target.kind is not FetchTargetKind.NODE_UID:
-            raise ValueError(f"expected target.kind=FetchTargetKind.NODE_UID; got {target.kind!r}")
+        logger.debug("api_endpoint: %s, anchor: %r", api_endpoint, anchor.target)
+        if anchor.kind is not QueryAnchorKind.NODE_UID:
+            raise ValueError(f"expected anchor.kind=QueryAnchorKind.NODE_UID; got {anchor.kind!r}")
         return FetchRoamNodes._fetch(
-            FetchRoamNodes.Request.payload_by_node_uid(target.target),
+            FetchRoamNodes.Request.payload_by_node_uid(anchor.target),
             api_endpoint,
-            f"node_uid={target.target!r}",
+            f"node_uid={anchor.target!r}",
         )
 
     @staticmethod
     def fetch_roam_nodes(
-        target: NodeFetchTarget, api_endpoint: ApiEndpoint, include_refs: bool = False
+        anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False
     ) -> NodeFetchResult:
-        """Fetch Roam nodes by page title or node UID, dispatching on *target* kind.
+        """Fetch Roam nodes by page title or node UID, dispatching on *anchor* kind.
 
         Routes to :meth:`fetch_by_node_uid` when
-        :attr:`~roam_pub.roam_node_fetch_result.NodeFetchTarget.kind` is
-        :attr:`~roam_pub.roam_node_fetch_result.FetchTargetKind.NODE_UID`, or to
+        :attr:`~roam_pub.roam_node_fetch_result.NodeFetchAnchor.kind` is
+        :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.NODE_UID`, or to
         :meth:`fetch_by_page_title` otherwise.
 
         Args:
-            target: The resolved fetch target, carrying both the raw string and its kind.
+            anchor: The resolved fetch anchor, carrying both the raw string and its kind.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
             include_refs: Forwarded to :meth:`fetch_by_page_title`; ignored when
-                *target* is a node UID.
+                *anchor* is a node UID.
 
         Returns:
             A list of :class:`RoamNode` instances.  Returns an empty list if nothing is found.
@@ -372,6 +392,6 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        if target.kind is FetchTargetKind.NODE_UID:
-            return FetchRoamNodes.fetch_by_node_uid(target=target, api_endpoint=api_endpoint)
-        return FetchRoamNodes.fetch_by_page_title(target=target, api_endpoint=api_endpoint, include_refs=include_refs)
+        if anchor.kind is QueryAnchorKind.NODE_UID:
+            return FetchRoamNodes.fetch_by_node_uid(anchor=anchor, api_endpoint=api_endpoint)
+        return FetchRoamNodes.fetch_by_page_title(anchor=anchor, api_endpoint=api_endpoint, include_refs=include_refs)

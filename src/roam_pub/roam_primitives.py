@@ -13,7 +13,7 @@ Public symbols are organized into four groups:
 
 import logging
 import re
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
@@ -63,7 +63,7 @@ References:
   - https://www.iana.org/assignments/media-types/media-types.xhtml
 """
 
-type UidPair = tuple[str, Uid]
+type UidPair = tuple[Literal["uid"], Uid]
 """A two-element tuple ``('uid', <uid-value>)`` used as a Datomic :entity/attrs source or value."""
 
 
@@ -71,8 +71,7 @@ class IdObject(BaseModel):
     """A thin wrapper carrying only a Datomic entity id.
 
     This is the stub shape returned by ``pull [*]`` for nested refs
-    (e.g. ``:block/children``, ``:block/refs``, ``:block/page``) when
-    those entities were not themselves pulled in full.
+    (e.g. ``:block/children``, ``:block/refs``, ``:block/page``).
 
     Attributes:
         id: The Datomic internal numeric entity id (:db/id).

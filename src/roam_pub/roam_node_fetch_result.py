@@ -2,8 +2,8 @@
 
 Public symbols:
 
-- :class:`FetchTargetKind` — enum discriminating a page-title target from a node-UID target.
-- :class:`NodeFetchTarget` — immutable model pairing a raw target string with its detected kind.
+- :class:`QueryAnchorKind` — enum discriminating a page-title target from a node-UID target.
+- :class:`NodeFetchAnchor` — immutable model pairing a raw anchor string with its detected kind.
 - :data:`NodeFetchResult` — flat list of :class:`~roam_pub.roam_node.RoamNode` records
   returned by all :class:`~roam_pub.roam_node_fetch.FetchRoamNodes` fetch methods.
 """
@@ -17,37 +17,37 @@ from roam_pub.roam_primitives import UID_RE
 
 
 @enum.unique
-class FetchTargetKind(enum.Enum):
-    """Discriminates the kind of target passed to :class:`~roam_pub.roam_node_fetch.FetchRoamNodes` fetch methods.
+class QueryAnchorKind(enum.Enum):
+    """Discriminates the kind of anchor passed to :class:`~roam_pub.roam_node_fetch.FetchRoamNodes` fetch methods.
 
     Attributes:
-        PAGE_TITLE: The target is a Roam page title string.
-        NODE_UID: The target is a nine-character ``:block/uid`` string.
+        PAGE_TITLE: The anchor is a Roam page title string.
+        NODE_UID: The anchor is a nine-character ``:block/uid`` string.
     """
 
     PAGE_TITLE = enum.auto()
     NODE_UID = enum.auto()
 
     @staticmethod
-    def of(target: str) -> FetchTargetKind:
-        """Return the :class:`FetchTargetKind` for *target*.
+    def of(anchor: str) -> QueryAnchorKind:
+        """Return the :class:`QueryAnchorKind` for *anchor*.
 
         Args:
-            target: A Roam page title or nine-character node UID.
+            anchor: A Roam page title or nine-character node UID.
 
         Returns:
-            :attr:`NODE_UID` when *target* matches
+            :attr:`NODE_UID` when *anchor* matches
             :data:`~roam_pub.roam_primitives.UID_RE`; :attr:`PAGE_TITLE` otherwise.
         """
-        return FetchTargetKind.NODE_UID if UID_RE.match(target) else FetchTargetKind.PAGE_TITLE
+        return QueryAnchorKind.NODE_UID if UID_RE.match(anchor) else QueryAnchorKind.PAGE_TITLE
 
 
-class NodeFetchTarget(BaseModel):
-    """Immutable model pairing a raw target string with its derived :class:`FetchTargetKind`.
+class NodeFetchAnchor(BaseModel):
+    """Immutable model pairing a raw anchor string with its derived :class:`QueryAnchorKind`.
 
     Attributes:
-        target: The raw target string — either a Roam page title or a nine-character node UID.
-        kind: Derived from *target* via :meth:`FetchTargetKind.of`.
+        target: The raw anchor string — either a Roam page title or a nine-character node UID.
+        kind: Derived from *target* via :meth:`QueryAnchorKind.of`.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -56,9 +56,9 @@ class NodeFetchTarget(BaseModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def kind(self) -> FetchTargetKind:
-        """Derive the :class:`FetchTargetKind` from :attr:`target`."""
-        return FetchTargetKind.of(self.target)
+    def kind(self) -> QueryAnchorKind:
+        """Derive the :class:`QueryAnchorKind` from :attr:`target`."""
+        return QueryAnchorKind.of(self.target)
 
 
 type NodeFetchResult = list[RoamNode]
