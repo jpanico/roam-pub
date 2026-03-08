@@ -324,6 +324,7 @@ class TestFetchRoamNodesFetchByPageTitle:
             )
 
         assert len(result.network) == 2
+        assert result.nodes_by_uid is not None
         assert result.nodes_by_uid["rich1234x"].time == 1700000000000
         assert result.nodes_by_uid["rich1234x"].children == [IdObject(id=42)]
 
@@ -388,6 +389,7 @@ class TestFetchRoamNodesFetchByPageTitle:
             )
 
         assert len(result.network) == 3
+        assert result.nodes_by_uid is not None
         by_uid = result.nodes_by_uid
 
         # Page node: no props

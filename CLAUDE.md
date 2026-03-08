@@ -24,7 +24,10 @@ ruff format --preview src/        # fix structural formatting around docstrings
 ruff check --fix src/ tests/      # lint + fix docstring style (Google convention)
 black .                           # format code
 pyright                           # type check (strict)
-pytest                            # run tests
+pytest                            # run tests (excludes live tests)
+
+# Live tests — NOT part of the check pipeline; must be explicitly requested:
+ROAM_LIVE_TESTS=1 pytest -m live -v  # requires Roam Desktop running locally
 ```
 
 ## Project Structure
@@ -87,3 +90,4 @@ All code written or modified by Claude MUST follow these conventions — no exce
 - `ROAM_API_TOKEN` — bearer token for auth (all CLI tools)
 - `ROAM_EXPORT_DIR` — output directory for `export-roam-tree`
 - `ROAM_CACHE_DIR` — directory for caching downloaded Cloud Firestore assets (`export-roam-tree`)
+- `ROAM_LIVE_TESTS` — set to any non-empty value to enable live tests (e.g. `ROAM_LIVE_TESTS=1`); requires Roam Desktop running locally

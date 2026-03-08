@@ -163,13 +163,15 @@ class TestNodeFetchResult:
         fetch_spec: Final[NodeFetchSpec] = NodeFetchSpec(
             anchor=NodeFetchAnchor(qualifier=_PAGE_TITLE), include_refs=False
         )
-        return NodeFetchResult.from_network([_page_node()], fetch_spec)
+        return NodeFetchResult.from_network([_page_node()], fetch_spec, raw_result=[[{}]])
 
     def test_valid_construction(self) -> None:
         """Test that a NodeFetchResult can be constructed with all required fields."""
         result: Final[NodeFetchResult] = self._make_result()
         assert result.fetch_spec.anchor.qualifier == _PAGE_TITLE
+        assert result.anchor_tree is not None
         assert len(result.anchor_tree.network) == 1
+        assert result.nodes_by_uid is not None
         assert result.nodes_by_uid[_PAGE_UID].title == _PAGE_TITLE
 
     def test_immutability(self) -> None:
@@ -181,6 +183,7 @@ class TestNodeFetchResult:
     def test_network_contains_all_fetched_nodes(self) -> None:
         """Test that network returns every node in nodes_by_uid as a flat list."""
         result: Final[NodeFetchResult] = self._make_result()
+        assert result.nodes_by_uid is not None
         assert {n.uid for n in result.network} == set(result.nodes_by_uid.keys())
 
     def test_direct_construction_raises_type_error(self) -> None:

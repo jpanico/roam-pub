@@ -47,10 +47,13 @@ def fetch_roam_trees(
         result: Final[NodeFetchResult] = FetchRoamNodes.fetch_roam_nodes(
             anchor=anchor, api_endpoint=api_endpoint, include_refs=include_refs
         )
-    except Exception as e:
-        logger.error("Error fetching %r: %s", anchor.qualifier, e)
+    except Exception:
+        logger.exception("Error fetching %r", anchor.qualifier)
         raise typer.Exit(code=1)
 
+    if result.anchor_tree is None:
+        logger.error("anchor_tree is None; fetch_spec has skip_node_parsing=True, which is unsupported here")
+        raise typer.Exit(code=1)
     anchor_tree: Final[NodeTree] = result.anchor_tree
     vertex_tree: Final[VertexTree] = transcribe(anchor_tree)
     logger.debug("node_tree=%r\n\nvertex_tree=%r", anchor_tree, vertex_tree)

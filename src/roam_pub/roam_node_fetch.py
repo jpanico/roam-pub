@@ -280,21 +280,33 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        local_api_response_payload: LocalApiResponse.Payload = invoke_action(request_payload, api_endpoint)
+        local_api_response_payload: Final[LocalApiResponse.Payload] = invoke_action(request_payload, api_endpoint)
         logger.debug("local_api_response_payload: %s", local_api_response_payload)
 
-        response_payload: FetchRoamNodes.Response.Payload = FetchRoamNodes.Response.Payload.model_validate(
+        # Capture the raw Datalog result before RoamNode parsing; .get() on dict[str, Any]
+        # returns Any, which is assignable to the declared list[list[dict[str, object]]] | None.
+        raw_result: Final[list[list[dict[str, object]]] | None] = local_api_response_payload.model_dump(
+            mode="json"
+        ).get("result")
+
+        # Fail fast before expensive RoamNode parsing if the API returned no rows.
+        if not raw_result:
+            logger.info("no nodes found for %s", fetch_spec)
+            raise ValueError(f"no nodes found for fetch_spec={fetch_spec!r}")
+
+        if fetch_spec.skip_node_parsing:
+            logger.debug("skip_node_parsing=True; returning raw result without RoamNode parsing")
+            return NodeFetchResult.from_raw_result(fetch_spec, raw_result)
+
+        response_payload: Final[FetchRoamNodes.Response.Payload] = FetchRoamNodes.Response.Payload.model_validate(
             local_api_response_payload.model_dump(mode="json")
         )
         logger.debug("response_payload: %s", response_payload)
 
         # Datalog :find returns an array-of-arrays; (pull ...) value is at row[0]
-        result: list[list[RoamNode]] = response_payload.result
-        nodes: NodeNetwork = [row[0] for row in result]
-        if not nodes:
-            logger.info("no nodes found for %s", fetch_spec)
-            raise ValueError(f"no nodes found for fetch_spec={fetch_spec!r}")
-        return NodeFetchResult.from_network(nodes, fetch_spec)
+        result: Final[list[list[RoamNode]]] = response_payload.result
+        nodes: Final[NodeNetwork] = [row[0] for row in result]
+        return NodeFetchResult.from_network(nodes, fetch_spec, raw_result=raw_result)
 
     @staticmethod
     @validate_call
