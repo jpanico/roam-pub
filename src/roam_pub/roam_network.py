@@ -3,9 +3,6 @@
 Public symbols:
 
 - :data:`NodeNetwork` — a collection of :class:`~roam_pub.roam_node.RoamNode` instances.
-- :func:`is_root` — return ``True`` when a node has no ancestors inside a :data:`NodeNetwork`.
-- :func:`roots` — return all root nodes in a :data:`NodeNetwork`.
-- :func:`has_single_root` — :data:`~roam_pub.validation.Validator` requiring exactly one root node.
 - :func:`all_children_present` — :data:`~roam_pub.validation.Validator` requiring all child ids in a
   :data:`NodeNetwork` to resolve to member nodes.
 - :func:`all_parents_present` — :data:`~roam_pub.validation.Validator` requiring all parent ids in a
@@ -30,66 +27,6 @@ Relationships between nodes are encoded via :attr:`~roam_pub.roam_node.RoamNode.
 :class:`~roam_pub.roam_primitives.IdObject` stubs referencing :attr:`~roam_pub.roam_node.RoamNode.id`
 values within the collection.
 """
-
-
-def is_root(node: RoamNode, network: NodeNetwork) -> bool:
-    """Return ``True`` when *node* has no ancestors inside *network*.
-
-    A node is considered a root when its ``parents`` field is ``None`` or
-    empty, or when none of its parent ids resolve to a node in *network*.
-
-    Args:
-        node: The candidate node to test.
-        network: The collection of nodes used to resolve parent ids.
-
-    Returns:
-        ``True`` if *node* has no parents or no parents present in *network*;
-        ``False`` otherwise.
-    """
-    if not node.parents:
-        return True
-    network_ids: set[Id] = {n.id for n in network}
-    return not any(p.id in network_ids for p in node.parents)
-
-
-def roots(network: NodeNetwork) -> list[RoamNode]:
-    """Return every root node in *network*.
-
-    A node is a root per :func:`is_root` — its :attr:`~roam_pub.roam_node.RoamNode.parents` field is
-    ``None`` or empty, or none of its parent ids resolve to a node in *network*.
-
-    Args:
-        network: The collection of nodes to examine.
-
-    Returns:
-        A list of all root nodes in *network*, in the order they appear in *network*.
-        The list is empty when *network* is empty.
-    """
-    return [n for n in network if is_root(n, network)]
-
-
-def has_single_root(network: NodeNetwork) -> ValidationError | None:
-    """Return ``None`` when *network* contains exactly one root node.
-
-    A node is a root per :func:`is_root` — its :attr:`~roam_pub.roam_node.RoamNode.parents` field is
-    ``None`` or empty, or none of its parent ids resolve to a node in *network*.
-    The validator fails if the root count is anything other than one.
-
-    Args:
-        network: The collection of nodes to validate.
-
-    Returns:
-        ``None`` if *network* has exactly one root; a
-        :class:`~roam_pub.validation.ValidationError` describing the failure
-        otherwise.
-    """
-    root_nodes: Final[list[RoamNode]] = roots(network)
-    if len(root_nodes) == 1:
-        return None
-    root_uids: Final[list[Uid]] = sorted(n.uid for n in root_nodes)
-    return ValidationError(
-        message=f"expected exactly one root node; found {len(root_nodes)}: {root_uids}", validator=has_single_root
-    )
 
 
 def all_children_present(network: NodeNetwork) -> ValidationError | None:
@@ -124,33 +61,21 @@ def all_children_present(network: NodeNetwork) -> ValidationError | None:
     )
 
 
-def all_parents_present(network: NodeNetwork, *, is_standalone: bool = True) -> ValidationError | None:
+def all_parents_present(network: NodeNetwork, root_node: RoamNode) -> ValidationError | None:
     """Return ``None`` when every parent id referenced in *network* resolves to a node in *network*.
 
     Iterates every node in *network* and checks that each :attr:`~roam_pub.roam_node.RoamNode.id`
     value found in a node's :attr:`~roam_pub.roam_node.RoamNode.parents` list corresponds to the
-    :attr:`~roam_pub.roam_node.RoamNode.id` of at least one node in *network*.
+    :attr:`~roam_pub.roam_node.RoamNode.id` of at least one node in *network*.  Parent ids that
+    appear in *root_node*'s :attr:`~roam_pub.roam_node.RoamNode.parents` list are exempt from this
+    check — they are considered external ancestors that legitimately live outside *network*.
 
-    A network with no parents at all vacuously satisfies this condition and
-    returns ``None``.
-
-    Because :attr:`~roam_pub.roam_node.RoamNode.parents` records the *complete ancestor path* from a node
-    up to the absolute root of the original graph, a sub-network extracted from a larger
-    graph will contain parent references to nodes that legitimately live outside the
-    sub-network — not only in the effective root nodes (those for which :func:`is_root`
-    returns ``True``), but also in deeper nodes whose :attr:`~roam_pub.roam_node.RoamNode.parents` lists
-    include those same external ancestors.  When *is_standalone* is ``False``, the union
-    of the :attr:`~roam_pub.roam_node.RoamNode.parents` of all effective roots is collected as the *external
-    ancestor id set*, and any parent reference that falls within that set is exempt from
-    the check regardless of which node carries it.
+    A network with no parents at all vacuously satisfies this condition and returns ``None``.
 
     Args:
         network: The collection of nodes to examine.
-        is_standalone: When ``True`` (default), every parent id referenced by any node in
-            *network* must itself be present in *network*.  When ``False``, parent ids that
-            belong to the external ancestor set — the union of the
-            :attr:`~roam_pub.roam_node.RoamNode.parents` of all effective roots — are also accepted
-            as absent without error.
+        root_node: The root of *network*.  Its parent ids are treated as external ancestors and
+            exempt from the presence check.
 
     Returns:
         ``None`` if every applicable parent id in *network* resolves to a node in
@@ -158,9 +83,7 @@ def all_parents_present(network: NodeNetwork, *, is_standalone: bool = True) -> 
         absent parent ids and the sorted ids of the nodes that referenced them otherwise.
     """
     network_ids: Final[set[Id]] = {n.id for n in network}
-    external_ancestor_ids: Final[set[Id]] = (
-        set() if is_standalone else {p.id for root in network if is_root(root, network) for p in (root.parents or [])}
-    )
+    external_ancestor_ids: Final[set[Id]] = {p.id for p in (root_node.parents or [])}
     violations: Final[list[tuple[Id, Id]]] = [
         (n.id, parent.id)
         for n in network

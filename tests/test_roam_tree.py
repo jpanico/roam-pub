@@ -4,11 +4,8 @@ import pytest
 
 from roam_pub.roam_network import (
     all_children_present,
-    all_parents_present,
-    has_single_root,
     has_unique_ids,
     is_acyclic,
-    is_root,
 )
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_primitives import Id, IdObject
@@ -25,13 +22,10 @@ class TestIsTree:
     # valid trees → ValidationResult with no errors
     # ------------------------------------------------------------------
 
-    def test_empty_network_returns_invalid(self) -> None:
-        """Test that an empty network fails has_single_root (zero roots) and returns an invalid result."""
+    def test_empty_network_returns_valid(self) -> None:
+        """Test that an empty network satisfies all remaining tree invariants."""
         result = is_tree([])
-        assert result.is_valid is False
-        assert result.errors == (
-            ValidationError(message="expected exactly one root node; found 0: []", validator=has_single_root),
-        )
+        assert result.is_valid is True
 
     def test_single_root_node_is_valid(self) -> None:
         """Test that a single parentless node satisfies all tree invariants."""
@@ -109,32 +103,24 @@ class TestIsTree:
             ),
         )
 
-    def test_two_roots_returns_invalid(self) -> None:
-        """Test that two parentless nodes violate has_single_root and return an invalid result."""
+    def test_two_roots_returns_valid(self) -> None:
+        """Test that two parentless nodes satisfy all tree invariants."""
         node1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
         node2 = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
         result = is_tree([node1, node2])
-        assert result.is_valid is False
-        assert result.errors == (
-            ValidationError(
-                message="expected exactly one root node; found 2: ['page00001', 'page00002']",
-                validator=has_single_root,
-            ),
-        )
+        assert result.is_valid is True
 
     def test_multiple_failures_accumulate_all_errors(self) -> None:
         """Test that all validators run even after prior failures, accumulating every error."""
         # duplicate id=1 → has_unique_ids fails
-        # both nodes have parents=[id=99] (absent from network) → both treated as roots → has_single_root fails
-        # all_parents_present fails because id=99 is absent from network
+        # node1 references absent child id=99 → all_children_present fails
         node1 = RoamNode(
             uid="page00001",
             id=1,
             time=STUB_TIME,
             user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=99)],
-            page=IdObject(id=99),
+            title="stub",
+            children=[IdObject(id=99)],
         )
         node2 = RoamNode(
             uid="page00002",
@@ -142,30 +128,22 @@ class TestIsTree:
             time=STUB_TIME,
             user=STUB_USER,
             string="stub",
-            parents=[IdObject(id=99)],
-            page=IdObject(id=99),
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
         )
         result = is_tree([node1, node2])
         assert result.is_valid is False
         assert result.errors == (
             ValidationError(message="expected unique node ids; found duplicates: [1]", validator=has_unique_ids),
             ValidationError(
-                message="expected exactly one root node; found 2: ['page00001', 'page00002']",
-                validator=has_single_root,
-            ),
-            ValidationError(
-                message="parent ids absent from network: [99]; referenced by nodes: [1]",
-                validator=all_parents_present,
+                message="child ids absent from network: [99]; referenced by nodes: [1]",
+                validator=all_children_present,
             ),
         )
 
-    # ------------------------------------------------------------------
-    # is_standalone=False — subtree validation
-    # ------------------------------------------------------------------
-
     def test_not_rooted_subtree_is_valid(self) -> None:
-        """Test that a node-UID subtree with an external root parent is valid when is_standalone=False."""
-        # root's parent (id=99) is outside the network — allowed when is_standalone=False
+        """Test that a node-UID subtree with an external root parent is valid."""
+        # root's parent (id=99) is outside the network — is_tree checks only structural invariants
         root = RoamNode(
             uid="block0001",
             id=10,
@@ -185,42 +163,11 @@ class TestIsTree:
             page=IdObject(id=99),
             children=[],
         )
-        result = is_tree([root, child], is_standalone=False)
+        result = is_tree([root, child])
         assert result.is_valid is True
 
-    def test_not_rooted_absent_non_root_parent_returns_invalid(self) -> None:
-        """Test that is_standalone=False still catches absent parents on non-root nodes."""
-        # root's external parent (id=99) is exempt; child has one present parent (id=10) so it is
-        # a non-root — its second parent (id=88) is absent and must still be caught
-        root = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="root",
-            parents=[IdObject(id=99)],
-            page=IdObject(id=99),
-            children=[IdObject(id=20)],
-        )
-        child = RoamNode(
-            uid="block0002",
-            id=20,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="child",
-            parents=[IdObject(id=10), IdObject(id=88)],
-            page=IdObject(id=99),
-        )
-        result = is_tree([root, child], is_standalone=False)
-        assert result.is_valid is False
-        expected = ValidationError(
-            message="parent ids absent from network: [88]; referenced by nodes: [20]",
-            validator=all_parents_present,
-        )
-        assert expected in result.errors
-
-    def test_not_rooted_default_is_rooted_true(self) -> None:
-        """Test that omitting is_standalone rejects a subtree whose root has an external parent."""
+    def test_subtree_root_external_parent_is_always_exempt(self) -> None:
+        """Test that a subtree root's external parent is always exempt — no flag required."""
         root = RoamNode(
             uid="block0001",
             id=10,
@@ -231,12 +178,7 @@ class TestIsTree:
             page=IdObject(id=99),
         )
         result = is_tree([root])
-        assert result.is_valid is False
-        expected = ValidationError(
-            message="parent ids absent from network: [99]; referenced by nodes: [10]",
-            validator=all_parents_present,
-        )
-        assert expected in result.errors
+        assert result.is_valid is True
 
 
 class TestNodeTree:
@@ -259,7 +201,7 @@ class TestNodeTreeDFSIterator:
     def test_single_node_tree_yields_root(self) -> None:
         """Test that a one-node tree yields only the root node."""
         root = RoamNode(uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        tree = NodeTree(network=[root])
+        tree = NodeTree(network=[root], root_node=root)
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001"]
 
     def test_two_node_tree_yields_root_then_child(self) -> None:
@@ -275,7 +217,7 @@ class TestNodeTreeDFSIterator:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        tree = NodeTree(network=[root, child])
+        tree = NodeTree(network=[root, child], root_node=root)
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "chld00001"]
 
     def test_children_yielded_in_ascending_order_field(self) -> None:
@@ -309,7 +251,7 @@ class TestNodeTreeDFSIterator:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        tree = NodeTree(network=[root, child_first, child_second])
+        tree = NodeTree(network=[root, child_first, child_second], root_node=root)
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "chld00002", "chld00001"]
 
     def test_preorder_visits_subtree_before_sibling(self) -> None:
@@ -353,7 +295,7 @@ class TestNodeTreeDFSIterator:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        tree = NodeTree(network=[root, node_a, node_a1, node_b])
+        tree = NodeTree(network=[root, node_a, node_a1, node_b], root_node=root)
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "nodeA0001", "nodeA1001", "nodeB0001"]
 
     def test_all_nodes_yielded_exactly_once(self) -> None:
@@ -386,7 +328,7 @@ class TestNodeTreeDFSIterator:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        tree = NodeTree(network=[root, child_a, child_b])
+        tree = NodeTree(network=[root, child_a, child_b], root_node=root)
         yielded: list[RoamNode] = list(NodeTreeDFSIterator(tree))
         assert len(yielded) == 3
         assert len({n.uid for n in yielded}) == 3
@@ -394,17 +336,11 @@ class TestNodeTreeDFSIterator:
     def test_iterator_exhausted_raises_stop_iteration(self) -> None:
         """Test that __next__ raises StopIteration once all nodes have been yielded."""
         root = RoamNode(uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        tree = NodeTree(network=[root])
+        tree = NodeTree(network=[root], root_node=root)
         it: NodeTreeDFSIterator = NodeTreeDFSIterator(tree)
         assert next(it).uid == "root00001"
         with pytest.raises(StopIteration):
             next(it)
-
-    def test_article_fixture_root_is_first(self) -> None:
-        """Test that the root node is the first node yielded from the article fixture."""
-        tree = article0_node_tree()
-        first: RoamNode = next(iter(NodeTreeDFSIterator(tree)))
-        assert is_root(first, tree.network)
 
     def test_article_fixture_yields_all_nodes(self) -> None:
         """Test that the iterator yields every node in the article fixture exactly once."""

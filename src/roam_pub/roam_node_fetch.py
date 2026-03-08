@@ -21,7 +21,7 @@ from roam_pub.roam_local_api import (
     invoke_action,
 )
 from roam_pub.roam_node import RoamNode
-from roam_pub.roam_node_fetch_result import QueryAnchorKind, NodeFetchResult, NodeFetchAnchor
+from roam_pub.roam_node_fetch_result import QueryAnchorKind, NodeFetchResult_Placeholder, NodeFetchAnchor
 from roam_pub.roam_primitives import Uid
 
 logger = logging.getLogger(__name__)
@@ -250,7 +250,7 @@ class FetchRoamNodes:
     @staticmethod
     def _fetch(
         request_payload: LocalApiRequest.Payload, api_endpoint: ApiEndpoint, lookup_description: str
-    ) -> NodeFetchResult:
+    ) -> NodeFetchResult_Placeholder:
         """Invoke the Local API, validate the response, and extract the node list.
 
         Shared implementation used by all public ``fetch_*`` methods.  Callers are
@@ -290,7 +290,7 @@ class FetchRoamNodes:
     @validate_call
     def fetch_by_page_title(
         anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False
-    ) -> NodeFetchResult:
+    ) -> NodeFetchResult_Placeholder:
         """Fetch all Roam nodes matching the given page title from the Roam Research Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -332,7 +332,7 @@ class FetchRoamNodes:
 
     @staticmethod
     @validate_call
-    def fetch_by_node_uid(anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint) -> NodeFetchResult:
+    def fetch_by_node_uid(anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint) -> NodeFetchResult_Placeholder:
         """Fetch the Roam node with the given UID and all its descendants from the Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -371,7 +371,7 @@ class FetchRoamNodes:
     @staticmethod
     def fetch_roam_nodes(
         anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False
-    ) -> NodeFetchResult:
+    ) -> NodeFetchResult_Placeholder:
         """Fetch Roam nodes by page title or node UID, dispatching on *anchor* kind.
 
         Routes to :meth:`fetch_by_node_uid` when

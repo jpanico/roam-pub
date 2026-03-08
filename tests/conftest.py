@@ -2,13 +2,14 @@
 
 import os
 import pathlib
+from typing import Final
 
 import pytest
 import yaml
 
 from roam_pub.graph import VertexTree, vertex_adapter
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
-from roam_pub.roam_node import RoamNode
+from roam_pub.roam_node import NodeType, RoamNode, node_type
 from roam_pub.roam_tree import NodeTree
 from roam_pub.roam_primitives import IdObject
 
@@ -56,8 +57,10 @@ def live_api_endpoint() -> ApiEndpoint:
 
 def article0_node_tree() -> NodeTree:
     """Load and return the ``Test Article 0`` :class:`~roam_pub.roam_tree.NodeTree` from its YAML fixture."""
-    raw: list[dict[str, object]] = yaml.safe_load((FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
-    return NodeTree(network=[RoamNode.model_validate(r) for r in raw])
+    raw: Final[list[dict[str, object]]] = yaml.safe_load((FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
+    network: Final[list[RoamNode]] = [RoamNode.model_validate(r) for r in raw]
+    root_node: Final[RoamNode] = next(n for n in network if node_type(n) == NodeType.Page)
+    return NodeTree(network=network, root_node=root_node)
 
 
 def article0_vertex_tree() -> VertexTree:

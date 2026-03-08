@@ -5,6 +5,7 @@ Public symbols:
 - :class:`NodeType` — ``StrEnum`` of pull-block entity types: ``Page``, ``Block``.
 - :class:`RoamNode` — raw shape of a pull-block as returned by the Roam Local API.
 - :func:`node_type` — return the :class:`NodeType` of a :class:`RoamNode`.
+- :data:`NodesByUid` — ``dict`` mapping each :attr:`~RoamNode.uid` to its :class:`RoamNode`.
 """
 
 import enum
@@ -175,6 +176,10 @@ class RoamNode(BaseModel):
                 "got title=None, string=None"
             )
         return self
+
+
+type NodesByUid = dict[Uid, RoamNode]
+"""``dict`` mapping each :attr:`~RoamNode.uid` to its :class:`RoamNode`."""
 
 
 def node_type(node: RoamNode) -> NodeType:

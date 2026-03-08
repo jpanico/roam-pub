@@ -1,305 +1,16 @@
 """Tests for the roam_network module."""
 
 from roam_pub.roam_network import (
-    NodeNetwork,
     all_children_present,
     all_parents_present,
-    has_single_root,
     has_unique_ids,
     is_acyclic,
-    is_root,
 )
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_primitives import IdObject
 from roam_pub.validation import ValidationError
 
 from conftest import STUB_TIME, STUB_USER
-
-
-class TestIsRoot:
-    """Tests for is_root."""
-
-    # ------------------------------------------------------------------
-    # parents=None / empty → always root
-    # ------------------------------------------------------------------
-
-    def test_none_parents_is_root(self) -> None:
-        """Test that a node with parents=None is a root."""
-        node = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        assert is_root(node, [node]) is True
-
-    def test_empty_parents_is_root(self) -> None:
-        """Test that a node with an empty parents list is a root."""
-        node = RoamNode(
-            uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, string="stub", parents=[], page=IdObject(id=99)
-        )
-        assert is_root(node, [node]) is True
-
-    # ------------------------------------------------------------------
-    # parents non-empty but all absent from network → root
-    # ------------------------------------------------------------------
-
-    def test_node_with_absent_parent_is_root(self) -> None:
-        """Test that a node whose single parent id is absent from the network is a root."""
-        node = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=99)],
-            page=IdObject(id=99),
-        )
-        assert is_root(node, [node]) is True
-
-    def test_node_with_all_parents_absent_is_root(self) -> None:
-        """Test that a node with multiple parents all absent from the network is a root."""
-        node = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=97), IdObject(id=98), IdObject(id=99)],
-            page=IdObject(id=99),
-        )
-        assert is_root(node, [node]) is True
-
-    def test_node_with_absent_parent_in_empty_network_is_root(self) -> None:
-        """Test that a node with parents is a root when the network is empty (all parents absent)."""
-        node = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=1)],
-            page=IdObject(id=1),
-        )
-        assert is_root(node, []) is True
-
-    # ------------------------------------------------------------------
-    # parents non-empty and at least one present in network → not root
-    # ------------------------------------------------------------------
-
-    def test_single_parent_in_network_is_not_root(self) -> None:
-        """Test that a node whose single parent id is present in the network is not a root."""
-        parent = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        child = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=1)],
-            page=IdObject(id=1),
-        )
-        assert is_root(child, [parent, child]) is False
-
-    def test_all_parents_in_network_is_not_root(self) -> None:
-        """Test that a node with every parent id present in the network is not a root."""
-        parent1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        parent2 = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        child = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=1), IdObject(id=2)],
-            page=IdObject(id=1),
-        )
-        assert is_root(child, [parent1, parent2, child]) is False
-
-    def test_one_parent_in_network_among_several_is_not_root(self) -> None:
-        """Test that a node is not a root when any one of its parents is in the network."""
-        parent = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        child = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=1), IdObject(id=99)],
-            page=IdObject(id=1),
-        )
-        assert is_root(child, [parent, child]) is False
-
-    # ------------------------------------------------------------------
-    # two-node parent→child network: both nodes evaluated correctly
-    # ------------------------------------------------------------------
-
-    def test_parent_is_root_in_two_node_network(self) -> None:
-        """Test that the parent node is identified as a root in a simple two-node network."""
-        parent = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        child = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=1)],
-            page=IdObject(id=1),
-        )
-        network: NodeNetwork = [parent, child]
-        assert is_root(parent, network) is True
-
-    def test_child_is_not_root_in_two_node_network(self) -> None:
-        """Test that the child node is not a root in a simple two-node network."""
-        parent = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        child = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=1)],
-            page=IdObject(id=1),
-        )
-        network: NodeNetwork = [parent, child]
-        assert is_root(child, network) is False
-
-
-class TestHasSingleRoot:
-    """Tests for has_single_root."""
-
-    # ------------------------------------------------------------------
-    # empty network → error
-    # ------------------------------------------------------------------
-
-    def test_empty_network_returns_error(self) -> None:
-        """Test that an empty network has no root and returns a ValidationError."""
-        assert has_single_root([]) == ValidationError(
-            message="expected exactly one root node; found 0: []", validator=has_single_root
-        )
-
-    # ------------------------------------------------------------------
-    # single-node networks
-    # ------------------------------------------------------------------
-
-    def test_single_parentless_node_returns_none(self) -> None:
-        """Test that a one-node network whose node has no parents returns None."""
-        node = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        assert has_single_root([node]) is None
-
-    def test_single_node_with_absent_parent_returns_none(self) -> None:
-        """Test that a one-node network whose parent is absent from the network is treated as a root."""
-        node = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=99)],
-            page=IdObject(id=99),
-        )
-        assert has_single_root([node]) is None
-
-    # ------------------------------------------------------------------
-    # two-node networks
-    # ------------------------------------------------------------------
-
-    def test_parent_child_pair_returns_none(self) -> None:
-        """Test that a two-node parent→child network has exactly one root and returns None."""
-        parent = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        child = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=1)],
-            page=IdObject(id=1),
-        )
-        assert has_single_root([parent, child]) is None
-
-    def test_two_parentless_nodes_returns_error(self) -> None:
-        """Test that a network of two independent root nodes returns a ValidationError."""
-        node1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        node2 = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        assert has_single_root([node1, node2]) == ValidationError(
-            message="expected exactly one root node; found 2: ['page00001', 'page00002']",
-            validator=has_single_root,
-        )
-
-    def test_mutual_cycle_returns_error(self) -> None:
-        """Test that a two-node cycle (each node lists the other as parent) returns a ValidationError."""
-        node_a = RoamNode(
-            uid="cycleA001",
-            id=1,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=2)],
-            page=IdObject(id=99),
-        )
-        node_b = RoamNode(
-            uid="cycleB001",
-            id=2,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=1)],
-            page=IdObject(id=99),
-        )
-        assert has_single_root([node_a, node_b]) == ValidationError(
-            message="expected exactly one root node; found 0: []",
-            validator=has_single_root,
-        )
-
-    # ------------------------------------------------------------------
-    # larger networks
-    # ------------------------------------------------------------------
-
-    def test_three_node_linear_chain_returns_none(self) -> None:
-        """Test that a three-node linear chain has exactly one root and returns None."""
-        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        mid = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=1)],
-            page=IdObject(id=1),
-        )
-        leaf = RoamNode(
-            uid="block0002",
-            id=20,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=10)],
-            page=IdObject(id=1),
-        )
-        assert has_single_root([root, mid, leaf]) is None
-
-    def test_two_independent_trees_returns_error(self) -> None:
-        """Test that a network containing two separate rooted trees returns a ValidationError."""
-        root1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        child1 = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=1)],
-            page=IdObject(id=1),
-        )
-        root2 = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        child2 = RoamNode(
-            uid="block0002",
-            id=20,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=2)],
-            page=IdObject(id=2),
-        )
-        assert has_single_root([root1, child1, root2, child2]) == ValidationError(
-            message="expected exactly one root node; found 2: ['page00001', 'page00002']",
-            validator=has_single_root,
-        )
 
 
 class TestAllChildrenPresent:
@@ -472,20 +183,21 @@ class TestAllParentsPresent:
 
     def test_empty_network_returns_none(self) -> None:
         """Test that an empty network vacuously satisfies the condition and returns None."""
-        assert all_parents_present([]) is None
+        stub = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        assert all_parents_present([], stub) is None
 
     def test_network_with_no_parents_returns_none(self) -> None:
         """Test that a network of root nodes (all parents=None) vacuously returns None."""
         node1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
         node2 = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        assert all_parents_present([node1, node2]) is None
+        assert all_parents_present([node1, node2], node1) is None
 
     def test_node_with_empty_parents_list_returns_none(self) -> None:
         """Test that a node with an empty parents list vacuously returns None."""
         node = RoamNode(
             uid="block0001", id=10, time=STUB_TIME, user=STUB_USER, string="stub", parents=[], page=IdObject(id=99)
         )
-        assert all_parents_present([node]) is None
+        assert all_parents_present([node], node) is None
 
     # ------------------------------------------------------------------
     # all parents present → None
@@ -503,7 +215,7 @@ class TestAllParentsPresent:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        assert all_parents_present([parent, child]) is None
+        assert all_parents_present([parent, child], parent) is None
 
     def test_multi_level_network_all_parents_present_returns_none(self) -> None:
         """Test that a multi-level network with all parents present at every level returns None."""
@@ -526,14 +238,15 @@ class TestAllParentsPresent:
             parents=[IdObject(id=10)],
             page=IdObject(id=1),
         )
-        assert all_parents_present([root, mid, leaf]) is None
+        assert all_parents_present([root, mid, leaf], root) is None
 
     # ------------------------------------------------------------------
     # at least one parent absent → ValidationError
     # ------------------------------------------------------------------
 
     def test_single_absent_parent_returns_error(self) -> None:
-        """Test that a node whose single parent id is absent from the network returns a ValidationError."""
+        """Test that a non-root node whose single parent id is absent from the network returns a ValidationError."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
         child = RoamNode(
             uid="block0001",
             id=10,
@@ -543,7 +256,7 @@ class TestAllParentsPresent:
             parents=[IdObject(id=99)],
             page=IdObject(id=99),
         )
-        assert all_parents_present([child]) == ValidationError(
+        assert all_parents_present([root, child], root) == ValidationError(
             message="parent ids absent from network: [99]; referenced by nodes: [10]",
             validator=all_parents_present,
         )
@@ -560,7 +273,7 @@ class TestAllParentsPresent:
             parents=[IdObject(id=1), IdObject(id=99)],
             page=IdObject(id=1),
         )
-        assert all_parents_present([parent, child]) == ValidationError(
+        assert all_parents_present([parent, child], parent) == ValidationError(
             message="parent ids absent from network: [99]; referenced by nodes: [10]",
             validator=all_parents_present,
         )
@@ -586,17 +299,17 @@ class TestAllParentsPresent:
             parents=[IdObject(id=99)],
             page=IdObject(id=1),
         )
-        assert all_parents_present([root, mid, leaf]) == ValidationError(
+        assert all_parents_present([root, mid, leaf], root) == ValidationError(
             message="parent ids absent from network: [99]; referenced by nodes: [20]",
             validator=all_parents_present,
         )
 
     # ------------------------------------------------------------------
-    # is_standalone=False — external ancestors exempt from parent-presence check
+    # root's external parents exempt from parent-presence check
     # ------------------------------------------------------------------
 
-    def test_not_rooted_root_with_absent_parent_returns_none(self) -> None:
-        """Test that is_standalone=False exempts a root node whose parent is absent from the network."""
+    def test_root_with_absent_parent_returns_none(self) -> None:
+        """Test that a root node's absent parent is exempt from the check."""
         root = RoamNode(
             uid="block0001",
             id=10,
@@ -606,14 +319,14 @@ class TestAllParentsPresent:
             parents=[IdObject(id=99)],
             page=IdObject(id=99),
         )
-        assert all_parents_present([root], is_standalone=False) is None
+        assert all_parents_present([root], root) is None
 
-    def test_not_rooted_external_ancestor_in_non_root_parents_returns_none(self) -> None:
+    def test_external_ancestor_in_non_root_parents_returns_none(self) -> None:
         """Test that external ancestors propagate: a non-root node's parents list may include external ancestor ids.
 
         Because RoamNode.parents holds the complete ancestor path (not just the immediate parent),
         a non-root node in a sub-network will carry external ancestor ids in its parents list — the
-        same ids that appear in the effective root's parents.  These must be exempt from the check.
+        same ids that appear in the root's parents.  These must be exempt from the check.
         """
         root = RoamNode(
             uid="block0001",
@@ -633,10 +346,10 @@ class TestAllParentsPresent:
             parents=[IdObject(id=99), IdObject(id=10)],
             page=IdObject(id=99),
         )
-        assert all_parents_present([root, child], is_standalone=False) is None
+        assert all_parents_present([root, child], root) is None
 
-    def test_not_rooted_non_root_with_absent_parent_returns_error(self) -> None:
-        """Test that is_standalone=False still catches absent parents on non-root nodes."""
+    def test_non_root_with_absent_parent_returns_error(self) -> None:
+        """Test that only root's external parents are exempt — absent parents on non-root nodes are still caught."""
         page = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
         child = RoamNode(
             uid="block0001",
@@ -647,13 +360,13 @@ class TestAllParentsPresent:
             parents=[IdObject(id=1), IdObject(id=99)],
             page=IdObject(id=1),
         )
-        assert all_parents_present([page, child], is_standalone=False) == ValidationError(
+        assert all_parents_present([page, child], page) == ValidationError(
             message="parent ids absent from network: [99]; referenced by nodes: [10]",
             validator=all_parents_present,
         )
 
-    def test_not_rooted_subtree_with_external_root_parent_returns_none(self) -> None:
-        """Test is_standalone=False on a subtree: root's external parent is ignored; child's present parent is valid."""
+    def test_subtree_with_external_root_parent_returns_none(self) -> None:
+        """Test a subtree: root's external parent is exempt; child's present parent is valid."""
         root = RoamNode(
             uid="block0001",
             id=10,
@@ -672,20 +385,7 @@ class TestAllParentsPresent:
             parents=[IdObject(id=10)],
             page=IdObject(id=99),
         )
-        assert all_parents_present([root, child], is_standalone=False) is None
-
-    def test_not_rooted_true_is_default_behavior(self) -> None:
-        """Test that omitting is_standalone behaves identically to is_standalone=True."""
-        child = RoamNode(
-            uid="block0001",
-            id=10,
-            time=STUB_TIME,
-            user=STUB_USER,
-            string="stub",
-            parents=[IdObject(id=99)],
-            page=IdObject(id=99),
-        )
-        assert all_parents_present([child]) == all_parents_present([child], is_standalone=True)
+        assert all_parents_present([root, child], root) is None
 
 
 class TestHasUniqueIds:

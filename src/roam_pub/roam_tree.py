@@ -12,16 +12,13 @@ Public symbols:
 import logging
 from collections.abc import Iterator
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from roam_pub.roam_network import (
     NodeNetwork,
     all_children_present,
-    all_parents_present,
-    has_single_root,
     has_unique_ids,
     is_acyclic,
-    is_root,
 )
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_primitives import Id
@@ -33,40 +30,15 @@ logger = logging.getLogger(__name__)
 class NodeTree(BaseModel):
     """A Pydantic-typed wrapper holding a :data:`~roam_pub.roam_node.NodeNetwork`.
 
-    Raises:
-        pydantic.ValidationError: If *network* does not satisfy all tree invariants
-            verified by :func:`is_tree`.
-
     Attributes:
-        network: The constituent nodes of this tree.
-        is_standalone: When ``True`` (default), every node id referenced in the ``parents`` or
-            ``children`` relationships of any node in *network* must itself belong to *network*.
-            This constraint applies only to ``parents`` and ``children`` — not to other fields
-            such as :attr:`~roam_pub.roam_node.RoamNode.refs` that may reference nodes outside
-            *network*.  Set to ``False`` for a subtree fetched by node UID, where the root's
-            parent might legitimately live outside the network.
+        root_node: The single root node of this tree.
+        network: All constituent nodes of this tree, including *root_node*.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
 
-    network: NodeNetwork = Field(..., description="The constituent nodes of this tree.")
-    is_standalone: bool = Field(
-        default=True,
-        description=(
-            "When True, every node id referenced in the parents or children relationships of any "
-            "node in network must itself belong to network; refs and other fields are exempt. "
-            "Set to False for a subtree whose root's parent might live outside the network."
-        ),
-    )
-
-    @model_validator(mode="after")
-    def _validate_is_tree(self) -> NodeTree:
-        """Raise ValueError if *network* fails any tree invariant checked by is_tree."""
-        result = is_tree(self.network, is_standalone=self.is_standalone)
-        if not result.is_valid:
-            messages = "; ".join(str(e) for e in result.errors)
-            raise ValueError(messages)
-        return self
+    root_node: RoamNode = Field(..., description="The single root node of this tree.")
+    network: NodeNetwork = Field(..., description="All constituent nodes of this tree, including root_node.")
 
     def dfs(self) -> NodeTreeDFSIterator:
         """Return a pre-order depth-first iterator over this tree.
@@ -107,8 +79,7 @@ class NodeTreeDFSIterator(Iterator[RoamNode]):
             tree: The :class:`NodeTree` to traverse.
         """
         self._id_map: dict[Id, RoamNode] = {n.id: n for n in tree.network}
-        root: RoamNode = next(n for n in tree.network if is_root(n, tree.network))
-        self._stack: list[RoamNode] = [root]
+        self._stack: list[RoamNode] = [tree.root_node]
 
     def __iter__(self) -> Iterator[RoamNode]:
         """Return *self* (this object is its own iterator)."""
@@ -132,35 +103,30 @@ class NodeTreeDFSIterator(Iterator[RoamNode]):
         return node
 
 
-def is_tree(network: NodeNetwork, *, is_standalone: bool = True) -> ValidationResult:
+def is_tree(network: NodeNetwork) -> ValidationResult:
     """Return a :class:`~roam_pub.validation.ValidationResult` for all tree invariants on *network*.
 
     Runs every tree-invariant validator — :func:`~roam_pub.roam_node.has_unique_ids`,
-    :func:`~roam_pub.roam_node.has_single_root`,
-    :func:`~roam_pub.roam_node.all_children_present`,
-    :func:`~roam_pub.roam_node.all_parents_present`, and
+    :func:`~roam_pub.roam_node.all_children_present`, and
     :func:`~roam_pub.roam_node.is_acyclic` — via
     :func:`~roam_pub.validation.validate_all`.  All validators run regardless of prior failures;
     the result accumulates every error found.
 
     Args:
         network: The collection of nodes to validate.
-        is_standalone: Forwarded to :func:`~roam_pub.roam_node.all_parents_present`.  When
-            ``False``, root nodes are exempt from the parent-presence check.
 
     Returns:
         A :class:`~roam_pub.validation.ValidationResult` that is valid when *network* satisfies
         every tree invariant, or contains one :class:`~roam_pub.validation.ValidationError` per
         failed validator otherwise.
     """
-    logger.debug("network=%r, is_standalone=%r", network, is_standalone)
+    logger.debug("network=%r", network)
+
     return validate_all(
         network,
         [
             has_unique_ids,
-            has_single_root,
             all_children_present,
-            lambda n: all_parents_present(n, is_standalone=is_standalone),
             is_acyclic,
         ],
     )

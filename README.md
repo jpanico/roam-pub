@@ -142,7 +142,7 @@ roam-pub/
 │       ├── rich_rendering.py      # Rich panel/tree rendering for NodeTree and VertexTree
 │       ├── validation.py          # Generic accumulator-pipeline validation framework
 │       ├── roam_primitives.py     # Foundational type aliases, UID_PATTERN/UID_RE, IMAGE_LINK_RE (dep root)
-│       ├── roam_node.py           # RoamNode, NodeNetwork; tree-invariant validators (is_root, has_single_root, all_children_present, all_parents_present, has_unique_ids, is_acyclic)
+│       ├── roam_node.py           # RoamNode, NodeNetwork; tree-invariant validators (is_root, all_children_present, all_parents_present, has_unique_ids, is_acyclic)
 │       ├── roam_tree.py           # NodeTree, NodeTreeDFSIterator, is_tree
 │       ├── graph.py               # Vertex union, VertexTree, VertexTreeDFSIterator
 │       ├── roam_schema.py         # Datomic schema model types (RoamNamespace, etc.)

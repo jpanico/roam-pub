@@ -42,7 +42,7 @@ pytest                            # run tests
     - `validation.py` — generic accumulator-pipeline validation framework
   - **Model layer**
     - `roam_primitives.py` — foundational type aliases, stub models, `UID_PATTERN`, `UID_RE`, `IMAGE_LINK_RE` (dependency root)
-    - `roam_node.py` — `RoamNode`, `NodeNetwork`; tree-invariant validators (`is_root`, `has_single_root`, `all_children_present`, `all_parents_present`, `has_unique_ids`, `is_acyclic`)
+    - `roam_node.py` — `RoamNode`, `NodeNetwork`; tree-invariant validators (`is_root`, `all_children_present`, `all_parents_present`, `has_unique_ids`, `is_acyclic`)
     - `roam_tree.py` — `NodeTree`, `NodeTreeDFSIterator`, `is_tree`
     - `graph.py` — `Vertex` union, `VertexTree`, `VertexTreeDFSIterator`
     - `roam_schema.py` — Datomic schema model types (`RoamNamespace`, etc.)
