@@ -203,7 +203,7 @@ def main(
     )
 
     trees: Final[tuple[NodeTree, VertexTree]] = fetch_roam_trees(
-        NodeFetchAnchor(target=target), api_endpoint, include_refs=include_refs
+        NodeFetchAnchor(qualifier=target), api_endpoint, include_refs=include_refs
     )
     node_tree: Final[NodeTree] = trees[0]
     vertex_tree: Final[VertexTree] = trees[1]

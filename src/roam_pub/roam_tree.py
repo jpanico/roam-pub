@@ -2,33 +2,40 @@
 
 Public symbols:
 
-- :class:`NodeTree` — a Pydantic-typed wrapper holding a :data:`~roam_pub.roam_node.NodeNetwork`.
+- :class:`NodeTree` — a Pydantic-typed wrapper holding a :data:`~roam_pub.roam_network.NodeNetwork`;
+  validates all tree invariants at construction time via :func:`is_tree`.
 - :meth:`NodeTree.dfs` — return a :class:`NodeTreeDFSIterator` for pre-order depth-first traversal.
 - :class:`NodeTreeDFSIterator` — pre-order depth-first iterator over a :class:`NodeTree`.
-- :func:`is_tree` — validate all tree invariants against a :data:`~roam_pub.roam_node.NodeNetwork`;
-  returns a :class:`~roam_pub.validation.ValidationResult`.
+- :func:`is_tree` — validate all tree invariants for a :class:`~roam_pub.roam_node.RoamNode` root
+  and its :data:`~roam_pub.roam_network.NodeNetwork`; returns a
+  :class:`~roam_pub.validation.ValidationResult`.
 """
 
 import logging
 from collections.abc import Iterator
+from typing import Final
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from roam_pub.roam_network import (
     NodeNetwork,
     all_children_present,
+    all_parents_present,
     has_unique_ids,
     is_acyclic,
 )
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_primitives import Id
-from roam_pub.validation import ValidationResult, validate_all
+from roam_pub.validation import ValidationError, ValidationResult, validate_all
 
 logger = logging.getLogger(__name__)
 
 
 class NodeTree(BaseModel):
     """A Pydantic-typed wrapper holding a :data:`~roam_pub.roam_node.NodeNetwork`.
+
+    All tree invariants are validated at construction time via :func:`is_tree`; a
+    :exc:`pydantic.ValidationError` is raised if *network* does not satisfy them.
 
     Attributes:
         root_node: The single root node of this tree.
@@ -39,6 +46,19 @@ class NodeTree(BaseModel):
 
     root_node: RoamNode = Field(..., description="The single root node of this tree.")
     network: NodeNetwork = Field(..., description="All constituent nodes of this tree, including root_node.")
+
+    @model_validator(mode="after")
+    def _validate_is_tree(self) -> NodeTree:
+        """Validate all tree invariants on *network* at construction time.
+
+        Raises:
+            ValueError: If *network* violates any tree invariant; the message lists every
+                :class:`~roam_pub.validation.ValidationError` found.
+        """
+        result: Final[ValidationResult] = is_tree(self.root_node, self.network)
+        if not result.is_valid:
+            raise ValueError("NodeTree network validation failed: " + "; ".join(str(e) for e in result.errors))
+        return self
 
     def dfs(self) -> NodeTreeDFSIterator:
         """Return a pre-order depth-first iterator over this tree.
@@ -103,16 +123,18 @@ class NodeTreeDFSIterator(Iterator[RoamNode]):
         return node
 
 
-def is_tree(network: NodeNetwork) -> ValidationResult:
+def is_tree(root_node: RoamNode, network: NodeNetwork) -> ValidationResult:
     """Return a :class:`~roam_pub.validation.ValidationResult` for all tree invariants on *network*.
 
-    Runs every tree-invariant validator — :func:`~roam_pub.roam_node.has_unique_ids`,
-    :func:`~roam_pub.roam_node.all_children_present`, and
-    :func:`~roam_pub.roam_node.is_acyclic` — via
+    Runs every tree-invariant validator — :func:`~roam_pub.roam_network.has_unique_ids`,
+    :func:`~roam_pub.roam_network.all_children_present`,
+    :func:`~roam_pub.roam_network.all_parents_present`, and
+    :func:`~roam_pub.roam_network.is_acyclic` — via
     :func:`~roam_pub.validation.validate_all`.  All validators run regardless of prior failures;
     the result accumulates every error found.
 
     Args:
+        root_node: The single root node of *network*.
         network: The collection of nodes to validate.
 
     Returns:
@@ -120,13 +142,17 @@ def is_tree(network: NodeNetwork) -> ValidationResult:
         every tree invariant, or contains one :class:`~roam_pub.validation.ValidationError` per
         failed validator otherwise.
     """
-    logger.debug("network=%r", network)
+    logger.debug("root_node=%r, network=%r", root_node, network)
+
+    def _check_parents(network: NodeNetwork) -> ValidationError | None:
+        return all_parents_present(network, root_node)
 
     return validate_all(
         network,
         [
             has_unique_ids,
             all_children_present,
+            _check_parents,
             is_acyclic,
         ],
     )

@@ -56,19 +56,19 @@ class NodeFetchAnchor(BaseModel):
     """Immutable model pairing a raw anchor string with its derived :class:`QueryAnchorKind`.
 
     Attributes:
-        target: The raw anchor string — either a Roam page title or a nine-character node UID.
-        kind: Derived from *target* via :meth:`QueryAnchorKind.of`.
+        qualifier: The raw anchor string — either a Roam page title or a nine-character node UID.
+        kind: Derived from *qualifier* via :meth:`QueryAnchorKind.of`.
     """
 
     model_config = ConfigDict(frozen=True)
 
-    target: str = Field(description="A Roam page title or nine-character node UID.")
+    qualifier: str = Field(description="A Roam page title or nine-character node UID.")
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def kind(self) -> QueryAnchorKind:
-        """Derive the :class:`QueryAnchorKind` from :attr:`target`."""
-        return QueryAnchorKind.of(self.target)
+        """Derive the :class:`QueryAnchorKind` from :attr:`qualifier`."""
+        return QueryAnchorKind.of(self.qualifier)
 
 
 class NodeFetchSpec(BaseModel):
@@ -113,7 +113,7 @@ def anchor_node(network: NodeNetwork, anchor: NodeFetchAnchor) -> RoamNode:
 
     Args:
         network: The node network to search.
-        anchor: The fetch anchor whose :attr:`~NodeFetchAnchor.target` string identifies
+        anchor: The fetch anchor whose :attr:`~NodeFetchAnchor.qualifier` string identifies
             the anchor node — matched against :attr:`~roam_pub.roam_node.RoamNode.uid`
             for :attr:`~QueryAnchorKind.NODE_UID` anchors, or against
             :attr:`~roam_pub.roam_node.RoamNode.title` for :attr:`~QueryAnchorKind.PAGE_TITLE`
@@ -126,11 +126,11 @@ def anchor_node(network: NodeNetwork, anchor: NodeFetchAnchor) -> RoamNode:
         ValueError: If no node in *network* matches *anchor*.
     """
     if anchor.kind is QueryAnchorKind.NODE_UID:
-        found: RoamNode | None = next((n for n in network if n.uid == anchor.target), None)
+        found: RoamNode | None = next((n for n in network if n.uid == anchor.qualifier), None)
     else:
-        found = next((n for n in network if n.title == anchor.target), None)
+        found = next((n for n in network if n.title == anchor.qualifier), None)
     if found is None:
-        raise ValueError(f"no node found in network matching anchor {anchor.target!r} (kind={anchor.kind!r})")
+        raise ValueError(f"no node found in network matching anchor {anchor.qualifier!r} (kind={anchor.kind!r})")
     return found
 
 

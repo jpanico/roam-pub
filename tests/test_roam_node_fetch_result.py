@@ -83,23 +83,23 @@ class TestNodeFetchAnchor:
 
     def test_kind_is_node_uid_for_uid_target(self) -> None:
         """Test that a UID target produces kind=NODE_UID."""
-        anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(target=_VALID_UID)
+        anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(qualifier=_VALID_UID)
         assert anchor.kind is QueryAnchorKind.NODE_UID
 
     def test_kind_is_page_title_for_title_target(self) -> None:
         """Test that a page-title target produces kind=PAGE_TITLE."""
-        anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(target="My Page")
+        anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(qualifier="My Page")
         assert anchor.kind is QueryAnchorKind.PAGE_TITLE
 
     def test_target_is_preserved(self) -> None:
         """Test that the raw target string is stored as-is."""
-        anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(target=_PAGE_TITLE)
-        assert anchor.target == _PAGE_TITLE
+        anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(qualifier=_PAGE_TITLE)
+        assert anchor.qualifier == _PAGE_TITLE
 
     def test_null_target_raises_validation_error(self) -> None:
         """Test that a None target raises ValidationError."""
         with pytest.raises(ValidationError):
-            NodeFetchAnchor(target=None)  # type: ignore[arg-type]
+            NodeFetchAnchor(qualifier=None)  # type: ignore[arg-type]
 
     def test_missing_target_raises_validation_error(self) -> None:
         """Test that omitting target raises ValidationError."""
@@ -108,9 +108,9 @@ class TestNodeFetchAnchor:
 
     def test_immutability(self) -> None:
         """Test that NodeFetchAnchor instances are immutable (frozen)."""
-        anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(target="My Page")
+        anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(qualifier="My Page")
         with pytest.raises(Exception):
-            anchor.target = "Other Page"  # type: ignore[misc]
+            anchor.qualifier = "Other Page"  # type: ignore[misc]
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ class TestNodeFetchResult:
     def _make_result(self) -> NodeFetchResult:
         """Return a minimal valid :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult`."""
         page: Final[RoamNode] = _page_node()
-        fetch_anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(target=_PAGE_TITLE)
+        fetch_anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(qualifier=_PAGE_TITLE)
         anchor_tree: Final[NodeTree] = NodeTree(network=[page], root_node=page)
         nodes_by_uid: Final[NodesByUid] = {page.uid: page}
         return NodeFetchResult(fetch_anchor=fetch_anchor, anchor_tree=anchor_tree, nodes_by_uid=nodes_by_uid)
@@ -132,7 +132,7 @@ class TestNodeFetchResult:
     def test_valid_construction(self) -> None:
         """Test that a NodeFetchResult can be constructed with all required fields."""
         result: Final[NodeFetchResult] = self._make_result()
-        assert result.fetch_anchor.target == _PAGE_TITLE
+        assert result.fetch_anchor.qualifier == _PAGE_TITLE
         assert len(result.anchor_tree.network) == 1
         assert result.nodes_by_uid[_PAGE_UID].title == _PAGE_TITLE
 
@@ -140,7 +140,7 @@ class TestNodeFetchResult:
         """Test that NodeFetchResult instances are immutable (frozen)."""
         result: Final[NodeFetchResult] = self._make_result()
         with pytest.raises(Exception):
-            result.fetch_anchor = NodeFetchAnchor(target="Other")  # type: ignore[misc]
+            result.fetch_anchor = NodeFetchAnchor(qualifier="Other")  # type: ignore[misc]
 
     def test_missing_fetch_anchor_raises_validation_error(self) -> None:
         """Test that omitting fetch_anchor raises ValidationError."""
@@ -156,7 +156,7 @@ class TestNodeFetchResult:
         page: Final[RoamNode] = _page_node()
         with pytest.raises(ValidationError):
             NodeFetchResult(  # type: ignore[call-arg]
-                fetch_anchor=NodeFetchAnchor(target=_PAGE_TITLE),
+                fetch_anchor=NodeFetchAnchor(qualifier=_PAGE_TITLE),
                 nodes_by_uid={page.uid: page},
             )
 
@@ -165,7 +165,7 @@ class TestNodeFetchResult:
         page: Final[RoamNode] = _page_node()
         with pytest.raises(ValidationError):
             NodeFetchResult(  # type: ignore[call-arg]
-                fetch_anchor=NodeFetchAnchor(target=_PAGE_TITLE),
+                fetch_anchor=NodeFetchAnchor(qualifier=_PAGE_TITLE),
                 anchor_tree=NodeTree(network=[page], root_node=page),
             )
 
@@ -182,14 +182,14 @@ class TestAnchorNode:
         """Test that a NODE_UID anchor returns the node with the matching uid."""
         page: Final[RoamNode] = _page_node(uid=_VALID_UID)
         network: Final[NodeNetwork] = [page]
-        result: Final[RoamNode] = anchor_node(network, NodeFetchAnchor(target=_VALID_UID))
+        result: Final[RoamNode] = anchor_node(network, NodeFetchAnchor(qualifier=_VALID_UID))
         assert result.uid == _VALID_UID
 
     def test_finds_node_by_title(self) -> None:
         """Test that a PAGE_TITLE anchor returns the node with the matching title."""
         page: Final[RoamNode] = _page_node(title=_PAGE_TITLE)
         network: Final[NodeNetwork] = [page]
-        result: Final[RoamNode] = anchor_node(network, NodeFetchAnchor(target=_PAGE_TITLE))
+        result: Final[RoamNode] = anchor_node(network, NodeFetchAnchor(qualifier=_PAGE_TITLE))
         assert result.title == _PAGE_TITLE
 
     def test_returns_correct_node_from_multi_node_network(self) -> None:
@@ -197,25 +197,25 @@ class TestAnchorNode:
         page1: Final[RoamNode] = _page_node(uid="pgeuid001", title="Page One")
         page2: Final[RoamNode] = _page_node(uid="pgeuid002", title="Page Two")
         network: Final[NodeNetwork] = [page1, page2]
-        result: Final[RoamNode] = anchor_node(network, NodeFetchAnchor(target="Page Two"))
+        result: Final[RoamNode] = anchor_node(network, NodeFetchAnchor(qualifier="Page Two"))
         assert result.uid == "pgeuid002"
 
     def test_raises_value_error_when_uid_not_found(self) -> None:
         """Test that a ValueError is raised when no node matches a NODE_UID anchor."""
         network: Final[NodeNetwork] = [_page_node()]
         with pytest.raises(ValueError, match=_VALID_UID):
-            anchor_node(network, NodeFetchAnchor(target=_VALID_UID))
+            anchor_node(network, NodeFetchAnchor(qualifier=_VALID_UID))
 
     def test_raises_value_error_when_title_not_found(self) -> None:
         """Test that a ValueError is raised when no node matches a PAGE_TITLE anchor."""
         network: Final[NodeNetwork] = [_page_node()]
         with pytest.raises(ValueError, match="Nonexistent"):
-            anchor_node(network, NodeFetchAnchor(target="Nonexistent Page"))
+            anchor_node(network, NodeFetchAnchor(qualifier="Nonexistent Page"))
 
     def test_raises_value_error_on_empty_network(self) -> None:
         """Test that a ValueError is raised when the network is empty."""
         with pytest.raises(ValueError):
-            anchor_node([], NodeFetchAnchor(target=_PAGE_TITLE))
+            anchor_node([], NodeFetchAnchor(qualifier=_PAGE_TITLE))
 
 
 # ---------------------------------------------------------------------------
@@ -257,13 +257,13 @@ class TestAnchorTree:
         """Test that a page with no children returns only the anchor node."""
         page: Final[RoamNode] = _page(uid=_PAGE_UID, id_=1, title=_PAGE_TITLE, child_ids=[])
         network: Final[NodeNetwork] = [page]
-        result: Final[NodeNetwork] = anchor_tree(network, NodeFetchAnchor(target=_PAGE_TITLE))
+        result: Final[NodeNetwork] = anchor_tree(network, NodeFetchAnchor(qualifier=_PAGE_TITLE))
         assert result == [page]
 
     def test_result_always_includes_anchor_node(self) -> None:
         """Test that the anchor node itself is always present in the result."""
         page: Final[RoamNode] = _page(uid=_PAGE_UID, id_=1, title=_PAGE_TITLE, child_ids=[])
-        result: Final[NodeNetwork] = anchor_tree([page], NodeFetchAnchor(target=_PAGE_TITLE))
+        result: Final[NodeNetwork] = anchor_tree([page], NodeFetchAnchor(qualifier=_PAGE_TITLE))
         assert page in result
 
     def test_includes_direct_children(self) -> None:
@@ -272,7 +272,7 @@ class TestAnchorTree:
         block_a: Final[RoamNode] = _block(uid="blckuid01", id_=2, page_id=1)
         block_b: Final[RoamNode] = _block(uid="blckuid02", id_=3, page_id=1)
         network: Final[NodeNetwork] = [page, block_a, block_b]
-        result: Final[NodeNetwork] = anchor_tree(network, NodeFetchAnchor(target=_PAGE_TITLE))
+        result: Final[NodeNetwork] = anchor_tree(network, NodeFetchAnchor(qualifier=_PAGE_TITLE))
         assert {n.uid for n in result} == {"pageuid01", "blckuid01", "blckuid02"}
 
     def test_includes_all_descendants_recursively(self) -> None:
@@ -281,7 +281,7 @@ class TestAnchorTree:
         block_a: Final[RoamNode] = _block(uid="blckuid01", id_=2, page_id=1, child_ids=[3])
         block_a1: Final[RoamNode] = _block(uid="blckuid02", id_=3, page_id=1)
         network: Final[NodeNetwork] = [page, block_a, block_a1]
-        result: Final[NodeNetwork] = anchor_tree(network, NodeFetchAnchor(target=_PAGE_TITLE))
+        result: Final[NodeNetwork] = anchor_tree(network, NodeFetchAnchor(qualifier=_PAGE_TITLE))
         assert {n.uid for n in result} == {"pageuid01", "blckuid01", "blckuid02"}
 
     def test_excludes_nodes_outside_subtree(self) -> None:
@@ -290,7 +290,7 @@ class TestAnchorTree:
         page2: Final[RoamNode] = _page(uid="pgeuid002", id_=2, title="Page Two", child_ids=[3])
         block_of_page2: Final[RoamNode] = _block(uid="blckuid01", id_=3, page_id=2)
         network: Final[NodeNetwork] = [page1, page2, block_of_page2]
-        result: Final[NodeNetwork] = anchor_tree(network, NodeFetchAnchor(target=_VALID_UID))
+        result: Final[NodeNetwork] = anchor_tree(network, NodeFetchAnchor(qualifier=_VALID_UID))
         assert {n.uid for n in result} == {_VALID_UID}
 
     def test_works_with_node_uid_anchor(self) -> None:
@@ -298,17 +298,17 @@ class TestAnchorTree:
         block_root: Final[RoamNode] = _block(uid=_VALID_UID, id_=1, page_id=99, child_ids=[2])
         block_child: Final[RoamNode] = _block(uid="blckuid01", id_=2, page_id=99)
         network: Final[NodeNetwork] = [block_root, block_child]
-        result: Final[NodeNetwork] = anchor_tree(network, NodeFetchAnchor(target=_VALID_UID))
+        result: Final[NodeNetwork] = anchor_tree(network, NodeFetchAnchor(qualifier=_VALID_UID))
         assert {n.uid for n in result} == {_VALID_UID, "blckuid01"}
 
     def test_raises_value_error_when_anchor_not_in_network(self) -> None:
         """Test that ValueError is raised when the anchor matches no node."""
         page: Final[RoamNode] = _page_node()
         with pytest.raises(ValueError):
-            anchor_tree([page], NodeFetchAnchor(target="Nonexistent Page"))
+            anchor_tree([page], NodeFetchAnchor(qualifier="Nonexistent Page"))
 
     def test_raises_value_error_when_child_id_missing_from_network(self) -> None:
         """Test that ValueError is raised when a child id is absent from the network."""
         page: Final[RoamNode] = _page(uid=_PAGE_UID, id_=1, title=_PAGE_TITLE, child_ids=[99])
         with pytest.raises(ValueError, match="99"):
-            anchor_tree([page], NodeFetchAnchor(target=_PAGE_TITLE))
+            anchor_tree([page], NodeFetchAnchor(qualifier=_PAGE_TITLE))

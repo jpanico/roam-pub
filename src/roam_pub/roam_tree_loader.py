@@ -49,11 +49,11 @@ def fetch_roam_trees(
             anchor=anchor, api_endpoint=api_endpoint, include_refs=include_refs
         )
     except Exception as e:
-        logger.error("Error fetching %r: %s", anchor.target, e)
+        logger.error("Error fetching %r: %s", anchor.qualifier, e)
         raise typer.Exit(code=1)
 
     if not nodes:
-        logger.info("No Roam nodes found for %r — aborting.", anchor.target)
+        logger.info("No Roam nodes found for %r — aborting.", anchor.qualifier)
         raise typer.Exit(code=1)
 
     root_node: Final[RoamNode] = anchor_node(nodes, anchor)

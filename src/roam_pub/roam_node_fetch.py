@@ -299,7 +299,7 @@ class FetchRoamNodes:
 
         Args:
             anchor: The resolved fetch anchor whose
-                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchAnchor.target` string is
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchAnchor.qualifier` string is
                 the exact title of the Roam page to fetch.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
             include_refs: When ``True``, also returns every node referenced via
@@ -321,13 +321,13 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug("api_endpoint: %s, anchor: %r, include_refs: %r", api_endpoint, anchor.target, include_refs)
+        logger.debug("api_endpoint: %s, anchor: %r, include_refs: %r", api_endpoint, anchor.qualifier, include_refs)
         if anchor.kind is not QueryAnchorKind.PAGE_TITLE:
             raise ValueError(f"expected anchor.kind=QueryAnchorKind.PAGE_TITLE; got {anchor.kind!r}")
         return FetchRoamNodes._fetch(
-            FetchRoamNodes.Request.payload_by_page_title(anchor.target, include_refs=include_refs),
+            FetchRoamNodes.Request.payload_by_page_title(anchor.qualifier, include_refs=include_refs),
             api_endpoint,
-            f"page_title={anchor.target!r}",
+            f"page_title={anchor.qualifier!r}",
         )
 
     @staticmethod
@@ -341,7 +341,7 @@ class FetchRoamNodes:
 
         Args:
             anchor: The resolved fetch anchor whose
-                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchAnchor.target` string is
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchAnchor.qualifier` string is
                 the nine-character ``:block/uid`` of the root node to fetch.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
@@ -359,13 +359,13 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug("api_endpoint: %s, anchor: %r", api_endpoint, anchor.target)
+        logger.debug("api_endpoint: %s, anchor: %r", api_endpoint, anchor.qualifier)
         if anchor.kind is not QueryAnchorKind.NODE_UID:
             raise ValueError(f"expected anchor.kind=QueryAnchorKind.NODE_UID; got {anchor.kind!r}")
         return FetchRoamNodes._fetch(
-            FetchRoamNodes.Request.payload_by_node_uid(anchor.target),
+            FetchRoamNodes.Request.payload_by_node_uid(anchor.qualifier),
             api_endpoint,
-            f"node_uid={anchor.target!r}",
+            f"node_uid={anchor.qualifier!r}",
         )
 
     @staticmethod

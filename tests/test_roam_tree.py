@@ -4,6 +4,7 @@ import pytest
 
 from roam_pub.roam_network import (
     all_children_present,
+    all_parents_present,
     has_unique_ids,
     is_acyclic,
 )
@@ -24,13 +25,14 @@ class TestIsTree:
 
     def test_empty_network_returns_valid(self) -> None:
         """Test that an empty network satisfies all remaining tree invariants."""
-        result = is_tree([])
+        stub_root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        result = is_tree(stub_root, [])
         assert result.is_valid is True
 
     def test_single_root_node_is_valid(self) -> None:
         """Test that a single parentless node satisfies all tree invariants."""
         node = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        result = is_tree([node])
+        result = is_tree(node, [node])
         assert result.is_valid is True
 
     def test_two_node_tree_is_valid(self) -> None:
@@ -45,7 +47,7 @@ class TestIsTree:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        result = is_tree([root, child])
+        result = is_tree(root, [root, child])
         assert result.is_valid is True
 
     def test_three_node_chain_is_valid(self) -> None:
@@ -70,7 +72,7 @@ class TestIsTree:
             parents=[IdObject(id=10)],
             page=IdObject(id=1),
         )
-        result = is_tree([root, mid, leaf])
+        result = is_tree(root, [root, mid, leaf])
         assert result.is_valid is True
 
     # ------------------------------------------------------------------
@@ -80,7 +82,7 @@ class TestIsTree:
     def test_self_loop_returns_invalid(self) -> None:
         """Test that a self-loop violates is_acyclic and returns an invalid result."""
         node = RoamNode(uid="cycleA001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=1)])
-        result = is_tree([node])
+        result = is_tree(node, [node])
         assert result.is_valid is False
         assert result.errors == (
             ValidationError(
@@ -94,7 +96,7 @@ class TestIsTree:
         parent = RoamNode(
             uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=99)]
         )
-        result = is_tree([parent])
+        result = is_tree(parent, [parent])
         assert result.is_valid is False
         assert result.errors == (
             ValidationError(
@@ -103,17 +105,39 @@ class TestIsTree:
             ),
         )
 
+    def test_absent_non_root_parent_returns_invalid(self) -> None:
+        """Test that an absent parent on a non-root node violates all_parents_present and returns an invalid result."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)])
+        child = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="stub",
+            parents=[IdObject(id=1), IdObject(id=99)],
+            page=IdObject(id=1),
+        )
+        result = is_tree(root, [root, child])
+        assert result.is_valid is False
+        assert result.errors == (
+            ValidationError(
+                message="parent ids absent from network: [99]; referenced by nodes: [10]",
+                validator=all_parents_present,
+            ),
+        )
+
     def test_two_roots_returns_valid(self) -> None:
         """Test that two parentless nodes satisfy all tree invariants."""
         node1 = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
         node2 = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        result = is_tree([node1, node2])
+        result = is_tree(node1, [node1, node2])
         assert result.is_valid is True
 
     def test_multiple_failures_accumulate_all_errors(self) -> None:
         """Test that all validators run even after prior failures, accumulating every error."""
         # duplicate id=1 → has_unique_ids fails
         # node1 references absent child id=99 → all_children_present fails
+        # node2 references absent parent id=88 → all_parents_present fails
         node1 = RoamNode(
             uid="page00001",
             id=1,
@@ -128,10 +152,10 @@ class TestIsTree:
             time=STUB_TIME,
             user=STUB_USER,
             string="stub",
-            parents=[IdObject(id=1)],
+            parents=[IdObject(id=1), IdObject(id=88)],
             page=IdObject(id=1),
         )
-        result = is_tree([node1, node2])
+        result = is_tree(node1, [node1, node2])
         assert result.is_valid is False
         assert result.errors == (
             ValidationError(message="expected unique node ids; found duplicates: [1]", validator=has_unique_ids),
@@ -139,11 +163,15 @@ class TestIsTree:
                 message="child ids absent from network: [99]; referenced by nodes: [1]",
                 validator=all_children_present,
             ),
+            ValidationError(
+                message="parent ids absent from network: [88]; referenced by nodes: [1]",
+                validator=all_parents_present,
+            ),
         )
 
     def test_not_rooted_subtree_is_valid(self) -> None:
         """Test that a node-UID subtree with an external root parent is valid."""
-        # root's parent (id=99) is outside the network — is_tree checks only structural invariants
+        # root's parent (id=99) is outside the network — all_parents_present always exempts the root node's parents
         root = RoamNode(
             uid="block0001",
             id=10,
@@ -163,7 +191,7 @@ class TestIsTree:
             page=IdObject(id=99),
             children=[],
         )
-        result = is_tree([root, child])
+        result = is_tree(root, [root, child])
         assert result.is_valid is True
 
     def test_subtree_root_external_parent_is_always_exempt(self) -> None:
@@ -177,7 +205,7 @@ class TestIsTree:
             parents=[IdObject(id=99)],
             page=IdObject(id=99),
         )
-        result = is_tree([root])
+        result = is_tree(root, [root])
         assert result.is_valid is True
 
 

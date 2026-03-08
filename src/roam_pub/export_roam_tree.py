@@ -155,7 +155,7 @@ def main(
         bearer_token=api_bearer_token,
     )
 
-    trees: Final[tuple[NodeTree, VertexTree]] = fetch_roam_trees(NodeFetchAnchor(target=target), api_endpoint)
+    trees: Final[tuple[NodeTree, VertexTree]] = fetch_roam_trees(NodeFetchAnchor(qualifier=target), api_endpoint)
     vertex_tree: Final[VertexTree] = trees[1]
     md_document: Final[str] = render(vertex_tree)
 
