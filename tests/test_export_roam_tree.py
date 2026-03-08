@@ -2,11 +2,13 @@
 
 import logging
 import pathlib
+from typing import Final
 from unittest.mock import patch
 
 from typer.testing import CliRunner
 
 from roam_pub.export_roam_tree import app
+from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchResult, NodeFetchSpec
 
 from conftest import FIXTURES_MD_DIR, article0_node_tree
 
@@ -21,12 +23,15 @@ class TestExportRoamTreeNoBundle:
         Local API fetch, invokes the CLI with --no-bundle, and asserts that the
         written .md file matches test_article_0_expected.md.
         """
-        nodes = article0_node_tree().network
+        fetch_spec: Final[NodeFetchSpec] = NodeFetchSpec(
+            anchor=NodeFetchAnchor(qualifier="Test Article 0"), include_refs=False
+        )
+        mock_result: Final[NodeFetchResult] = NodeFetchResult.from_network(article0_node_tree().network, fetch_spec)
         runner: CliRunner = CliRunner()
 
         with patch(
             "roam_pub.roam_tree_loader.FetchRoamNodes.fetch_roam_nodes",
-            return_value=nodes,
+            return_value=mock_result,
         ):
             # configure_logging() runs at import time and installs a StreamHandler
             # on the root logger.  CliRunner closes its captured stream after invoke,

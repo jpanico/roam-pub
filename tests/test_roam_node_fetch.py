@@ -12,7 +12,7 @@ from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_primitives import IdObject
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
-from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchSpec
+from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchResult, NodeFetchSpec
 
 from conftest import article0_node_tree
 
@@ -210,30 +210,29 @@ class TestFetchRoamNodesFetchByPageTitle:
                 )
 
     def test_successful_fetch_returns_roam_nodes(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
-        """Test that a successful HTTP 200 response returns a list of RoamNodes."""
+        """Test that a successful HTTP 200 response returns a NodeFetchResult with the fetched nodes."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response):
-            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
+            result: NodeFetchResult = FetchRoamNodes.fetch_by_page_title(
                 fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="My Page"), include_refs=False),
                 api_endpoint=api_endpoint,
             )
 
-        assert len(nodes) == 1
-        assert nodes[0].title == "My Page"
-        assert nodes[0].uid == "abc123xyz"
+        assert len(result.network) == 1
+        assert result.network[0].title == "My Page"
+        assert result.network[0].uid == "abc123xyz"
 
-    def test_page_not_found_returns_empty_list(self, api_endpoint: ApiEndpoint) -> None:
-        """Test that an empty result (page not found) returns an empty list."""
+    def test_page_not_found_raises_value_error(self, api_endpoint: ApiEndpoint) -> None:
+        """Test that an empty result (page not found) raises ValueError."""
         mock_response: MagicMock = MagicMock()
         mock_response.status_code = 200
         mock_response.text = json.dumps({"success": True, "result": []})
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
-            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
-                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="Nonexistent"), include_refs=False),
-                api_endpoint=api_endpoint,
-            )
-
-        assert nodes == []
+            with pytest.raises(ValueError):
+                FetchRoamNodes.fetch_by_page_title(
+                    fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="Nonexistent"), include_refs=False),
+                    api_endpoint=api_endpoint,
+                )
 
     def test_posts_to_correct_endpoint_url(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
         """Test that the POST is made to the correct endpoint URL."""
@@ -301,20 +300,32 @@ class TestFetchRoamNodesFetchByPageTitle:
                             "user": {"id": 3},
                             "children": [{"id": 42}],
                         }
-                    ]
+                    ],
+                    [
+                        {
+                            "string": "A child block",
+                            "uid": "richblk01",
+                            "id": 42,
+                            "time": 1700000000001,
+                            "user": {"id": 3},
+                            "order": 0,
+                            "page": {"id": 2},
+                            "parents": [{"id": 2}],
+                        }
+                    ],
                 ],
             }
         )
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
-            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
+            result: NodeFetchResult = FetchRoamNodes.fetch_by_page_title(
                 fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="Rich Page"), include_refs=False),
                 api_endpoint=api_endpoint,
             )
 
-        assert len(nodes) == 1
-        assert nodes[0].time == 1700000000000
-        assert nodes[0].children == [IdObject(id=42)]
+        assert len(result.network) == 2
+        assert result.nodes_by_uid["rich1234x"].time == 1700000000000
+        assert result.nodes_by_uid["rich1234x"].children == [IdObject(id=42)]
 
     def test_block_props_preserved(self, api_endpoint: ApiEndpoint) -> None:
         """Test that block properties (:block/props) survive the HTTP round-trip.
@@ -371,19 +382,19 @@ class TestFetchRoamNodesFetchByPageTitle:
         )
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
-            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
+            result: NodeFetchResult = FetchRoamNodes.fetch_by_page_title(
                 fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="Heading Page"), include_refs=False),
                 api_endpoint=api_endpoint,
             )
 
-        assert len(nodes) == 3
-        by_uid: dict[str, RoamNode] = {n.uid: n for n in nodes}
+        assert len(result.network) == 3
+        by_uid = result.nodes_by_uid
 
         # Page node: no props
         assert by_uid["headng001"].props is None
 
         # H4 augmented-heading block: props present with ah-level key
-        h4_node = by_uid["h4block01"]
+        h4_node: RoamNode = by_uid["h4block01"]
         assert h4_node.props is not None
         assert h4_node.props["ah-level"] == "h4"
 
@@ -401,15 +412,15 @@ class TestFetchRoamNodesFetchByPageTitle:
         """
         page_title = "Test Article 0"
 
-        nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
+        result: NodeFetchResult = FetchRoamNodes.fetch_by_page_title(
             fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier=page_title), include_refs=False),
             api_endpoint=live_api_endpoint,
         )
-        logger.debug("nodes: %s", nodes)
+        logger.debug("result: %s", result)
 
         fixture_nodes = article0_node_tree().network
 
-        assert [_stable_node_dict(n) for n in sorted(nodes, key=lambda n: n.uid)] == [
+        assert [_stable_node_dict(n) for n in sorted(result.network, key=lambda n: n.uid)] == [
             _stable_node_dict(n) for n in sorted(fixture_nodes, key=lambda n: n.uid)
         ]
 
@@ -430,19 +441,18 @@ class TestFetchRoamNodesFetchByNodeUid:
         with pytest.raises(ValidationError):
             FetchRoamNodes.fetch_by_node_uid(fetch_spec=None, api_endpoint=api_endpoint)  # type: ignore[arg-type]
 
-    def test_node_not_found_returns_empty_list(self, api_endpoint: ApiEndpoint) -> None:
-        """Test that an empty result (node not found) returns an empty list."""
+    def test_node_not_found_raises_value_error(self, api_endpoint: ApiEndpoint) -> None:
+        """Test that an empty result (node not found) raises ValueError."""
         mock_response: MagicMock = MagicMock()
         mock_response.status_code = 200
         mock_response.text = json.dumps({"success": True, "result": []})
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
-            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_node_uid(
-                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="wdMgyBiP9"), include_refs=False),
-                api_endpoint=api_endpoint,
-            )
-
-        assert nodes == []
+            with pytest.raises(ValueError):
+                FetchRoamNodes.fetch_by_node_uid(
+                    fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="wdMgyBiP9"), include_refs=False),
+                    api_endpoint=api_endpoint,
+                )
 
     @pytest.mark.live
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
@@ -461,14 +471,14 @@ class TestFetchRoamNodesFetchByNodeUid:
         all_fixture_nodes = article0_node_tree().network
         expected_nodes: list[RoamNode] = [n for n in all_fixture_nodes if n.uid in section2_uids]
 
-        nodes: list[RoamNode] = FetchRoamNodes.fetch_by_node_uid(
+        result: NodeFetchResult = FetchRoamNodes.fetch_by_node_uid(
             fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier=node_uid), include_refs=False),
             api_endpoint=live_api_endpoint,
         )
-        logger.debug("nodes: %s", nodes)
+        logger.debug("result: %s", result)
 
-        assert {n.uid for n in nodes} == section2_uids
-        assert [_stable_node_dict(n) for n in sorted(nodes, key=lambda n: n.uid)] == [
+        assert {n.uid for n in result.network} == section2_uids
+        assert [_stable_node_dict(n) for n in sorted(result.network, key=lambda n: n.uid)] == [
             _stable_node_dict(n) for n in sorted(expected_nodes, key=lambda n: n.uid)
         ]
 
@@ -496,12 +506,12 @@ class TestFetchRoamNodesFetchByNodeUid:
         )
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
-            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_node_uid(
+            result: NodeFetchResult = FetchRoamNodes.fetch_by_node_uid(
                 fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="wdMgyBiP9"), include_refs=False),
                 api_endpoint=api_endpoint,
             )
 
-        assert len(nodes) == len(section2_uids)
-        assert [_stable_node_dict(n) for n in sorted(nodes, key=lambda n: n.uid)] == [
+        assert len(result.network) == len(section2_uids)
+        assert [_stable_node_dict(n) for n in sorted(result.network, key=lambda n: n.uid)] == [
             _stable_node_dict(n) for n in sorted(expected_nodes, key=lambda n: n.uid)
         ]

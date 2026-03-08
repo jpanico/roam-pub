@@ -20,8 +20,14 @@ from roam_pub.roam_local_api import (
     Response as LocalApiResponse,
     invoke_action,
 )
+from roam_pub.roam_network import NodeNetwork
 from roam_pub.roam_node import RoamNode
-from roam_pub.roam_node_fetch_result import QueryAnchorKind, NodeFetchResult_Placeholder, NodeFetchAnchor, NodeFetchSpec
+from roam_pub.roam_node_fetch_result import (
+    NodeFetchAnchor,
+    NodeFetchResult,
+    NodeFetchSpec,
+    QueryAnchorKind,
+)
 from roam_pub.roam_primitives import Uid
 
 logger = logging.getLogger(__name__)
@@ -250,8 +256,8 @@ class FetchRoamNodes:
     @staticmethod
     def _fetch(
         request_payload: LocalApiRequest.Payload, api_endpoint: ApiEndpoint, fetch_spec: NodeFetchSpec
-    ) -> NodeFetchResult_Placeholder:
-        """Invoke the Local API, validate the response, and extract the node list.
+    ) -> NodeFetchResult:
+        """Invoke the Local API, validate the response, and return a :class:`NodeFetchResult`.
 
         Shared implementation used by all public ``fetch_*`` methods.  Callers are
         responsible for building *request_payload* and logging their entry-point
@@ -260,15 +266,17 @@ class FetchRoamNodes:
         Args:
             request_payload: A fully-constructed ``data.q`` request payload.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
-            fetch_spec: The fetch specification driving this request; its
-                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.anchor` is used to
-                construct the "no nodes found" log message.
+            fetch_spec: The fetch specification driving this request; used both for the
+                "no nodes found" log message and as the argument to
+                :meth:`~roam_pub.roam_node_fetch_result.NodeFetchResult.from_network`.
 
         Returns:
-            A list of :class:`RoamNode` instances extracted from the Datalog result
-            rows, or an empty list if the query matched nothing.
+            A :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult` constructed from
+            the fetched nodes and *fetch_spec*.
 
         Raises:
+            ValueError: If the Datalog query returns no nodes, or if no node in the result
+                matches the anchor in *fetch_spec*.
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
@@ -282,14 +290,15 @@ class FetchRoamNodes:
 
         # Datalog :find returns an array-of-arrays; (pull ...) value is at row[0]
         result: list[list[RoamNode]] = response_payload.result
-        nodes: list[RoamNode] = [row[0] for row in result]
+        nodes: NodeNetwork = [row[0] for row in result]
         if not nodes:
             logger.info("no nodes found for %s", fetch_spec)
-        return nodes
+            raise ValueError(f"no nodes found for fetch_spec={fetch_spec!r}")
+        return NodeFetchResult.from_network(nodes, fetch_spec)
 
     @staticmethod
     @validate_call
-    def fetch_by_page_title(fetch_spec: NodeFetchSpec, api_endpoint: ApiEndpoint) -> NodeFetchResult_Placeholder:
+    def fetch_by_page_title(fetch_spec: NodeFetchSpec, api_endpoint: ApiEndpoint) -> NodeFetchResult:
         """Fetch all Roam nodes matching the given page title from the Roam Research Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -305,19 +314,18 @@ class FetchRoamNodes:
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
         Returns:
-            A list of :class:`RoamNode` instances comprising the page node itself and
-            all its descendant blocks; when
-            :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.include_refs` is ``True``,
-            also includes every node referenced via ``:block/refs`` from the page or any
-            descendant.  Each node's :attr:`~roam_pub.roam_node.RoamNode.props` field is
-            populated when the block has block properties set (e.g. an ``ah-level`` value
-            from the Augmented Headings extension).  Returns an empty list if no matching
-            page exists.
+            A :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult` whose
+            :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.anchor_tree` is rooted
+            at the matching page node and whose
+            :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.network` contains the
+            page node and all its descendant blocks (plus any ``:block/refs`` targets when
+            :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.include_refs` is ``True``).
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.
             ValueError: If ``fetch_spec.anchor.kind`` is not
-                :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.PAGE_TITLE`.
+                :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.PAGE_TITLE`, or if
+                no page matching the title exists in the graph.
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
@@ -341,7 +349,7 @@ class FetchRoamNodes:
 
     @staticmethod
     @validate_call
-    def fetch_by_node_uid(fetch_spec: NodeFetchSpec, api_endpoint: ApiEndpoint) -> NodeFetchResult_Placeholder:
+    def fetch_by_node_uid(fetch_spec: NodeFetchSpec, api_endpoint: ApiEndpoint) -> NodeFetchResult:
         """Fetch the Roam node with the given UID and all its descendants from the Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -355,17 +363,17 @@ class FetchRoamNodes:
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
         Returns:
-            A list containing the root :class:`RoamNode` plus every block reachable
-            through ``:block/children`` at any depth.  Each node's
-            :attr:`~roam_pub.roam_node.RoamNode.props` field is populated when the
-            block has block properties set (e.g. an ``ah-level`` value from the
-            Augmented Headings extension).  Returns an empty list if no node with
-            the given UID exists in the graph.
+            A :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult` whose
+            :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.anchor_tree` is rooted
+            at the matched node and whose
+            :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.network` contains that
+            node and every block reachable through ``:block/children`` at any depth.
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.
             ValueError: If ``fetch_spec.anchor.kind`` is not
-                :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.NODE_UID`.
+                :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.NODE_UID`, or if
+                no node with the given UID exists in the graph.
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
@@ -383,7 +391,7 @@ class FetchRoamNodes:
     @staticmethod
     def fetch_roam_nodes(
         anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False
-    ) -> NodeFetchResult_Placeholder:
+    ) -> NodeFetchResult:
         """Fetch Roam nodes by page title or node UID, dispatching on *anchor* kind.
 
         Routes to :meth:`fetch_by_node_uid` when
@@ -398,7 +406,8 @@ class FetchRoamNodes:
                 *anchor* is a node UID.
 
         Returns:
-            A list of :class:`RoamNode` instances.  Returns an empty list if nothing is found.
+            A :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult` from the
+            dispatched fetch method.
 
         Raises:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.

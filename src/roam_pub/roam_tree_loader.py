@@ -13,9 +13,8 @@ import typer
 
 from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
-from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
-from roam_pub.roam_node_fetch_result import NodeFetchAnchor, anchor_node
+from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchResult
 from roam_pub.roam_tree import NodeTree
 from roam_pub.roam_transcribe import transcribe
 
@@ -42,22 +41,17 @@ def fetch_roam_trees(
             when *anchor* is a node UID.
 
     Returns:
-        A ``(node_tree, vertex_tree)`` pair ready for rendering or further processing.
+        An ``(anchor_tree, vertex_tree)`` pair ready for rendering or further processing.
     """
     try:
-        nodes: Final[list[RoamNode]] = FetchRoamNodes.fetch_roam_nodes(
+        result: Final[NodeFetchResult] = FetchRoamNodes.fetch_roam_nodes(
             anchor=anchor, api_endpoint=api_endpoint, include_refs=include_refs
         )
     except Exception as e:
         logger.error("Error fetching %r: %s", anchor.qualifier, e)
         raise typer.Exit(code=1)
 
-    if not nodes:
-        logger.info("No Roam nodes found for %r — aborting.", anchor.qualifier)
-        raise typer.Exit(code=1)
-
-    root_node: Final[RoamNode] = anchor_node(nodes, anchor)
-    node_tree: Final[NodeTree] = NodeTree(network=nodes, root_node=root_node)
-    vertex_tree: Final[VertexTree] = transcribe(node_tree)
-    logger.debug("node_tree=%r\n\nvertex_tree=%r", node_tree, vertex_tree)
-    return node_tree, vertex_tree
+    anchor_tree: Final[NodeTree] = result.anchor_tree
+    vertex_tree: Final[VertexTree] = transcribe(anchor_tree)
+    logger.debug("node_tree=%r\n\nvertex_tree=%r", anchor_tree, vertex_tree)
+    return anchor_tree, vertex_tree
