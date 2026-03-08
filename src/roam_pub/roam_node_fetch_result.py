@@ -163,9 +163,9 @@ class NodeFetchResult(BaseModel):
                 :class:`~roam_pub.roam_tree.NodeTree` invariant.
         """
         root: Final[RoamNode] = anchor_node(network, fetch_spec.anchor)
-        tree: Final[NodeTree] = NodeTree(network=network, root_node=root)
+        anchor_tree: Final[NodeTree] = NodeTree(network=network, root_node=root)
         by_uid: Final[NodesByUid] = {n.uid: n for n in network}
-        return cls.model_construct(fetch_spec=fetch_spec, anchor_tree=tree, nodes_by_uid=by_uid)
+        return cls.model_construct(fetch_spec=fetch_spec, anchor_tree=anchor_tree, nodes_by_uid=by_uid)
 
 
 type NodeFetchResult_Placeholder = NodeNetwork

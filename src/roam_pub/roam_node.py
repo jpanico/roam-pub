@@ -2,7 +2,7 @@
 
 Public symbols:
 
-- :class:`NodeType` — ``StrEnum`` of pull-block entity types: ``Page``, ``Block``.
+- :class:`NodeType` — ``StrEnum`` of pull-block entity types: ``Page``, ``Block``, ``Embed``.
 - :class:`RoamNode` — raw shape of a pull-block as returned by the Roam Local API.
 - :func:`node_type` — return the :class:`NodeType` of a :class:`RoamNode`.
 - :data:`NodesByUid` — ``dict`` mapping each :attr:`~RoamNode.uid` to its :class:`RoamNode`.
@@ -31,10 +31,16 @@ logger = logging.getLogger(__name__)
 
 
 class NodeType(enum.StrEnum):
-    """Entity type of a Roam pull-block, discriminated by which of ``title`` / ``string`` is set."""
+    """Entity type of a Roam pull-block, discriminated by ``title`` value and ``string`` presence.
+
+    - **Page**: ``title`` is a non-``"embed"`` string, ``string`` is ``None``.
+    - **Block**: ``string`` is set, ``title`` is ``None``.
+    - **Embed**: ``title`` is the literal ``"embed"``, ``string`` is ``None``, ``children`` is ``None``.
+    """
 
     Page = "Page"
     Block = "Block"
+    Embed = "Embed"
 
 
 class RoamNode(BaseModel):
@@ -43,14 +49,15 @@ class RoamNode(BaseModel):
     This is the *un-normalized* form — property names mirror the raw Datomic
     attribute names, and nested refs are still IdObject stubs rather than resolved UIDs.
 
-    Every pull-block is one of two mutually exclusive entity types, discriminated by
-    which of ``title`` / ``string`` is set.  The following invariants are enforced at
+    Every pull-block is one of three mutually exclusive entity types, discriminated by
+    ``title`` value and ``string`` presence.  The following invariants are enforced at
     construction time by :meth:`_validate_entity_type`:
 
-    - **Page**: ``title`` set, ``string`` ``None``, ``parents`` ``None``,
+    - **Page**: ``title`` set (non-``"embed"``), ``string`` ``None``, ``parents`` ``None``,
       ``children`` set, ``page`` ``None``.
     - **Block**: ``string`` set, ``title`` ``None``, ``parents`` set,
       ``page`` set, ``children`` any.
+    - **Embed**: ``title`` is the literal ``"embed"``, ``string`` ``None``, ``children`` ``None``.
 
     All remaining fields (``heading``, ``open``, ``sidebar``, ``refs``, etc.) are
     optional and vary by entity type and feature usage.
@@ -62,7 +69,7 @@ class RoamNode(BaseModel):
         time: Last-edit Unix timestamp in milliseconds (EDIT_TIME). Required.
         user: IdObject stub referencing the last-editing user entity. Required.
         string: Block text content (BLOCK_STRING). Present only on Block entities.
-        title: Page title (NODE_TITLE). Present only on Page entities.
+        title: Page title (NODE_TITLE). Present only on Page and Embed entities (literal ``"embed"`` for Embeds).
         order: Zero-based sibling order (BLOCK_ORDER). Present only on child Blocks.
         heading: HeadingLevel (BLOCK_HEADING). Present only on heading Blocks.
         children: Raw child block stubs (BLOCK_CHILDREN).
@@ -118,9 +125,10 @@ class RoamNode(BaseModel):
         ),
     )
 
-    # Page-only fields
+    # Page/Embed fields
     title: PageTitle | None = Field(
-        default=None, description=f"{RoamAttribute.NODE_TITLE} — page title; present only on Pages"
+        default=None,
+        description=f"{RoamAttribute.NODE_TITLE} — page title; present on Pages and Embed entities (literal 'embed')",
     )
     sidebar: int | None = Field(
         default=None, description=f"{RoamAttribute.PAGE_SIDEBAR} — sidebar state; present only on Pages"
@@ -139,16 +147,26 @@ class RoamNode(BaseModel):
 
     @model_validator(mode="after")
     def _validate_entity_type(self) -> RoamNode:
-        """Enforce Page/Block entity-type invariants.
+        """Enforce Page/Block/Embed entity-type invariants.
 
         Returns:
             The validated instance.
 
         Raises:
-            ValueError: If the instance violates the Page or Block field invariants,
+            ValueError: If the instance violates the Page, Block, or Embed field invariants,
                 or if neither ``title`` nor ``string`` is set.
         """
-        if self.title is not None:
+        if self.title == "embed":
+            embed_violations: Final[list[str]] = []
+            if self.string is not None:
+                embed_violations.append(f"string must be None; got {self.string!r}")
+            if self.children is not None:
+                embed_violations.append("children must be None")
+            if embed_violations:
+                raise ValueError(
+                    f"Embed entity (uid={self.uid!r}) constraint violations: {'; '.join(embed_violations)}"
+                )
+        elif self.title is not None:
             page_violations: Final[list[str]] = []
             if self.string is not None:
                 page_violations.append(f"string must be None; got {self.string!r}")
@@ -172,8 +190,8 @@ class RoamNode(BaseModel):
                 )
         else:
             raise ValueError(
-                f"RoamNode (uid={self.uid!r}) must be a Page (title set) or a Block (string set); "
-                "got title=None, string=None"
+                f"RoamNode (uid={self.uid!r}) must be a Page (title set), a Block (string set), "
+                "or an Embed (title='embed'); got title=None, string=None"
             )
         return self
 
@@ -185,8 +203,10 @@ type NodesByUid = dict[Uid, RoamNode]
 def node_type(node: RoamNode) -> NodeType:
     """Return the :class:`NodeType` of *node*.
 
-    Discriminates on :attr:`~RoamNode.title`: returns :attr:`NodeType.Page` when
-    ``title`` is set, and :attr:`NodeType.Block` otherwise.  The
+    Discriminates first on :attr:`~RoamNode.title` value: returns
+    :attr:`NodeType.Embed` when ``title`` is the literal ``"embed"``,
+    :attr:`NodeType.Page` when ``title`` is any other non-``None`` string, and
+    :attr:`NodeType.Block` when ``title`` is ``None``.  The
     :meth:`~RoamNode._validate_entity_type` validator guarantees that every
     :class:`RoamNode` instance satisfies exactly one of these cases.
 
@@ -194,6 +214,10 @@ def node_type(node: RoamNode) -> NodeType:
         node: The node whose entity type to determine.
 
     Returns:
-        :attr:`NodeType.Page` if *node* has a ``title``; :attr:`NodeType.Block` otherwise.
+        :attr:`NodeType.Embed` if ``title == "embed"``;
+        :attr:`NodeType.Page` if ``title`` is set (and not ``"embed"``);
+        :attr:`NodeType.Block` otherwise.
     """
+    if node.title == "embed":
+        return NodeType.Embed
     return NodeType.Page if node.title is not None else NodeType.Block

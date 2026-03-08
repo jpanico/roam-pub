@@ -119,9 +119,13 @@ class TestNodeType:
         """Test that NodeType.Block has string value 'Block'."""
         assert NodeType.Block == "Block"
 
-    def test_exactly_two_members(self) -> None:
-        """Test that NodeType has exactly two members."""
-        assert set(NodeType) == {NodeType.Page, NodeType.Block}
+    def test_embed_value(self) -> None:
+        """Test that NodeType.Embed has string value 'Embed'."""
+        assert NodeType.Embed == "Embed"
+
+    def test_exactly_three_members(self) -> None:
+        """Test that NodeType has exactly three members."""
+        assert set(NodeType) == {NodeType.Page, NodeType.Block, NodeType.Embed}
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +170,16 @@ class TestNodeTypeFunction:
             parents=[IdObject(id=99)],
             page=IdObject(id=99),
         )
+        assert node_type(node) is not NodeType.Page
+
+    def test_embed_node_returns_embed(self) -> None:
+        """Test that a node with title 'embed' returns NodeType.Embed."""
+        node = RoamNode(uid="embed0001", id=3, time=STUB_TIME, user=STUB_USER, title="embed")
+        assert node_type(node) is NodeType.Embed
+
+    def test_embed_node_is_not_page(self) -> None:
+        """Test that an embed node does not return NodeType.Page."""
+        node = RoamNode(uid="embed0001", id=3, time=STUB_TIME, user=STUB_USER, title="embed")
         assert node_type(node) is not NodeType.Page
 
     def test_result_is_str_enum(self) -> None:
