@@ -12,7 +12,7 @@ pip install -e ".[dev]"
 
 ## Key Commands
 ```bash
-dump-roam-tree <page_title_or_node_uid> -p <port> -g <graph> -t <token> [--mode v|n|vn] [--node-props <props>]
+dump-roam-tree <page_title_or_node_uid> -p <port> -g <graph> -t <token> [-v/-V] [-n/-N] [-r/-R] [--node-props <props>]
 export-roam-tree <page_title_or_node_uid> -p <port> -g <graph> -t <token> -o <output_dir> [--bundle|--no-bundle] [--cache-dir <dir>]
 
 # Run the full check pipeline (format + lint + type check + tests) in one shot:
@@ -33,9 +33,9 @@ ROAM_LIVE_TESTS=1 pytest -m live -v  # requires Roam Desktop running locally
 ## Project Structure
 - `src/roam_pub/` — main package
   - **CLI entry points**
-    - `dump_roam_tree.py` — dumps a Roam page or node subtree as a Rich tree to the terminal (`--mode v|n|vn`)
+    - `dump_roam_tree.py` — dumps a Roam page or node subtree as a Rich tree to the terminal; supports `--vertex-tree`/`--node-tree`/`--raw-results` flags (`dump-roam-tree`)
     - `export_roam_tree.py` — exports a Roam page or node subtree to a `.mdbundle` (default) or plain `.md` (`--no-bundle`); target is a page title or node UID (`export-roam-tree`)
-    - `roam_tree_loader.py` — shared tree-loading pipeline; `fetch_roam_trees` resolves a target, fetches nodes, and returns a `(NodeTree, VertexTree)` pair
+    - `roam_tree_loader.py` — shared tree-loading pipeline; `fetch_roam_trees` resolves a target, fetches nodes, and returns a `(NodeFetchResult, VertexTree | None)` pair
   - **Core logic**
     - `roam_md_bundle.py` — core bundling logic
     - `roam_md_normalize.py` — normalizes Roam-flavored Markdown strings to CommonMark
@@ -45,13 +45,15 @@ ROAM_LIVE_TESTS=1 pytest -m live -v  # requires Roam Desktop running locally
     - `validation.py` — generic accumulator-pipeline validation framework
   - **Model layer**
     - `roam_primitives.py` — foundational type aliases, stub models, `UID_PATTERN`, `UID_RE`, `IMAGE_LINK_RE` (dependency root)
-    - `roam_node.py` — `RoamNode`, `NodeNetwork`; tree-invariant validators (`is_root`, `all_children_present`, `all_parents_present`, `has_unique_ids`, `is_acyclic`)
-    - `roam_tree.py` — `NodeTree`, `NodeTreeDFSIterator`, `is_tree`
+    - `roam_node.py` — `RoamNode`, `NodeType`, `node_type`, `NodesByUid`
+    - `roam_network.py` — `NodeNetwork` type alias; network validators (`all_children_present`, `all_parents_present`, `has_unique_ids`, `is_acyclic`) and utilities (`all_descendants`, `refs_ids`)
+    - `roam_tree.py` — `NodeTree` (factory `build()`, fields `root_node`/`tree_network`/`refs_by_id`), `NodeTreeDFSIterator`, `is_tree`
     - `graph.py` — `Vertex` union, `VertexTree`, `VertexTreeDFSIterator`
     - `roam_schema.py` — Datomic schema model types (`RoamNamespace`, etc.)
     - `roam_asset.py` — Cloud Firestore asset model
   - **API / fetching**
     - `roam_local_api.py` — `ApiEndpoint` model for the Roam Local API
+    - `roam_node_fetch_result.py` — `NodeFetchAnchor`, `NodeFetchSpec`, `NodeFetchResult`; fetch result model and factory methods (`from_raw`, `from_network`); `anchor_node` helper
     - `roam_node_fetch.py` — fetches `RoamNode` records via Local API; `fetch_roam_nodes` dispatches on page title vs. node UID
     - `roam_schema_fetch.py` — fetches Datomic schema via Local API
     - `roam_asset_fetch.py` — fetches Firestore assets via Local API

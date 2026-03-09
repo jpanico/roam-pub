@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """CLI tool for dumping a Roam Research page or node subtree as a Rich tree to the terminal.
 
-Fetches all descendant blocks identified by ``TARGET`` via the Roam Local API,
-transcribes them into a :class:`~roam_pub.graph.VertexTree`, and renders
+Fetches Roam nodes identified by ``TARGET`` via the Roam Local API and renders
 one or more of the following as a colorized :class:`~rich.tree.Tree` panel
 hierarchy:
 
@@ -56,6 +55,7 @@ from roam_pub.rich_rendering import (
     build_rich_node_tree,
     build_rich_raw_table,
     build_rich_vertex_tree,
+    make_node_panel,
 )
 from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchResult, NodeFetchSpec
 from roam_pub.roam_tree_loader import fetch_roam_trees
@@ -75,7 +75,7 @@ def _dump_raw_table(fetch_result: NodeFetchResult, console: Console) -> None:
     """Print the raw-results Rich table for *fetch_result* to *console*.
 
     Delegates table construction to :func:`build_rich_raw_table`, then prints
-    a section rule, the table, and a trailing blank line.
+    a section rule, a blank line, the table, and a row-count summary line.
 
     Args:
         fetch_result: Fetch result passed through to :func:`build_rich_raw_table`.
@@ -93,6 +93,8 @@ def _dump_node_tree(fetch_result: NodeFetchResult, node_props: str | None, conso
 
     Logs a warning and returns early when
     :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.anchor_tree` is ``None``.
+    After the tree, prints one :func:`~roam_pub.rich_rendering.make_node_panel` panel per
+    node in :attr:`~roam_pub.roam_tree.NodeTree.refs_by_id` (if any).
 
     Args:
         fetch_result: Fetch result whose :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.anchor_tree`
@@ -112,6 +114,8 @@ def _dump_node_tree(fetch_result: NodeFetchResult, node_props: str | None, conso
     console.rule("[bold]Node Tree[/bold]")
     console.print()
     console.print(node_rich_tree)
+    for ref_node in fetch_result.anchor_tree.refs_by_id.values():
+        console.print(make_node_panel(ref_node, effective_props))
     console.print(
         f"{len(fetch_result.anchor_tree.tree_network)} node(s) in anchor tree, "
         f"{len(fetch_result.network)} total node(s) in fetch result"
