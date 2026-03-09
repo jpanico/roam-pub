@@ -52,7 +52,7 @@ def fetch_roam_trees(
             anchor=fetch_spec.anchor,
             api_endpoint=api_endpoint,
             include_refs=fetch_spec.include_refs,
-            include_node_tree=include_vertex_tree,
+            include_node_tree=fetch_spec.include_node_tree or include_vertex_tree,
         )
     except Exception:
         logger.exception("Error fetching %r", fetch_spec.anchor.qualifier)

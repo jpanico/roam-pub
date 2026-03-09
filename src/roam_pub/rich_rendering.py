@@ -160,7 +160,7 @@ def build_rich_node_tree(tree: NodeTree, props: list[str] = DEFAULT_NODE_PANEL_P
         A :class:`~rich.tree.Tree` rooted at the single root node of *tree*.
     """
     logger.debug("tree=%r, props=%r", tree, props)
-    child_to_parent: dict[Id, Id] = {c.id: n.id for n in tree.network if n.children for c in n.children}
+    child_to_parent: dict[Id, Id] = {c.id: n.id for n in tree.tree_network if n.children for c in n.children}
     rich_node_map: dict[Id, RichTree] = {}
     dfs_iter: NodeTreeDFSIterator = tree.dfs()
     root_node: RoamNode = next(dfs_iter)

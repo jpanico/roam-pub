@@ -3,7 +3,8 @@
 Public symbols:
 
 - :class:`NodeTree` — a Pydantic-typed wrapper holding a :data:`~roam_pub.roam_network.NodeNetwork`;
-  validates all tree invariants at construction time via :func:`is_tree`.
+  validates all tree invariants at construction time via :func:`is_tree`; must be created via
+  :meth:`NodeTree.build`.
 - :meth:`NodeTree.dfs` — return a :class:`NodeTreeDFSIterator` for pre-order depth-first traversal.
 - :meth:`NodeTree.node_ids` — return the set of all :attr:`~roam_pub.roam_node.RoamNode.id` values in this tree.
 - :meth:`NodeTree.node_refs_ids` — return the set of all :attr:`~roam_pub.roam_node.RoamNode.refs` ids across this tree.
@@ -17,13 +18,14 @@ Public symbols:
 
 import logging
 from collections.abc import Iterator
-from typing import Final
+from typing import ClassVar, Final
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from roam_pub.roam_network import (
     NodeNetwork,
     all_children_present,
+    all_descendants,
     all_parents_present,
     has_unique_ids,
     is_acyclic,
@@ -42,24 +44,95 @@ class NodeTree(BaseModel):
     All tree invariants are validated at construction time via :func:`is_tree`; a
     :exc:`pydantic.ValidationError` is raised if *network* does not satisfy them.
 
+    Instances must be created via :meth:`build` — direct construction raises
+    :exc:`ValueError`.
+
     Attributes:
         root_node: The single root node of this tree.
-        network: All constituent nodes of this tree, including *root_node*.
+        tree_network: All constituent nodes of this tree, including *root_node*.
+        refs_by_id: Map of id → :class:`~roam_pub.roam_node.RoamNode` for every node in
+            the source *super_network* whose id appears in the :func:`~roam_pub.roam_network.refs_ids`
+            set of :attr:`tree_network`; may be empty.
 
     Methods:
+        build: Factory method — the only supported way to create a :class:`NodeTree`.
         dfs: Return a :class:`NodeTreeDFSIterator` for pre-order depth-first traversal.
         node_ids: Return the set of all :attr:`~roam_pub.roam_node.RoamNode.id` values in
-            :attr:`network`.
+            :attr:`tree_network`.
         node_refs_ids: Return the set of all :attr:`~roam_pub.roam_node.RoamNode.refs` ids
-            across :attr:`network`.
+            across :attr:`tree_network`.
         external_refs_ids: Return the subset of :meth:`node_refs_ids` ids that are not members
             of :meth:`node_ids` — i.e. refs that resolve to nodes outside this tree.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
 
+    _creating: ClassVar[bool] = False
+
     root_node: RoamNode = Field(..., description="The single root node of this tree.")
-    network: NodeNetwork = Field(..., description="All constituent nodes of this tree, including root_node.")
+    tree_network: NodeNetwork = Field(..., description="All constituent nodes of this tree, including root_node.")
+    refs_by_id: dict[Id, RoamNode] = Field(
+        ...,
+        description=(
+            "Map of id → RoamNode for every node in super_network whose id appears in the refs_ids set of tree_network."
+        ),
+    )
+
+    @classmethod
+    def build(cls, root_node: RoamNode, super_network: NodeNetwork) -> NodeTree:
+        """Create a validated :class:`NodeTree` — the only supported construction path.
+
+        Uses :func:`~roam_pub.roam_network.all_descendants` to extract the subtree rooted
+        at *root_node* from *super_network*, builds :attr:`refs_by_id` from the remaining
+        nodes in *super_network* whose ids appear in the refs set of the extracted
+        :attr:`tree_network`, then delegates to the Pydantic constructor (which runs all
+        validators including :meth:`_validate_is_tree`).
+
+        Args:
+            root_node: The single root node of the tree.
+            super_network: Source node pool from which the tree's constituent nodes are
+                drawn; the :class:`~roam_pub.roam_node.RoamNode` instances in
+                *super_network* are a superset of the nodes that will form
+                :attr:`tree_network`.
+
+        Returns:
+            A fully validated :class:`NodeTree`.
+
+        Raises:
+            ValueError: If *root_node* is not present in *super_network*, if any child
+                id encountered during tree extraction cannot be resolved within
+                *super_network*, or if any refs id from :attr:`tree_network` cannot be
+                resolved within *super_network*.
+            pydantic.ValidationError: If the extracted :attr:`tree_network` violates any
+                tree invariant.
+        """
+        tree_ids: Final[set[Id]] = {root_node.id} | {n.id for n in all_descendants(root_node, super_network)}
+        tree_network: Final[NodeNetwork] = [n for n in super_network if n.id in tree_ids]
+        tree_refs_ids: Final[set[Id]] = refs_ids(tree_network)
+        refs_by_id: Final[dict[Id, RoamNode]] = {n.id: n for n in super_network if n.id in tree_refs_ids}
+        unresolvable_refs: Final[set[Id]] = tree_refs_ids - refs_by_id.keys()
+        if unresolvable_refs:
+            raise ValueError(
+                f"refs id(s) {sorted(unresolvable_refs)!r} referenced in tree_network"
+                " cannot be resolved in super_network"
+            )
+        cls._creating = True
+        try:
+            return cls(root_node=root_node, tree_network=tree_network, refs_by_id=refs_by_id)
+        finally:
+            cls._creating = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _require_build(cls, data: object) -> object:
+        """Reject direct construction and require use of :meth:`build`.
+
+        Raises:
+            ValueError: Always, unless called from within :meth:`build`.
+        """
+        if not cls._creating:
+            raise ValueError("NodeTree must be created via NodeTree.build(); direct construction is not supported.")
+        return data
 
     @model_validator(mode="after")
     def _validate_is_tree(self) -> NodeTree:
@@ -69,7 +142,7 @@ class NodeTree(BaseModel):
             ValueError: If *network* violates any tree invariant; the message lists every
                 :class:`~roam_pub.validation.ValidationError` found.
         """
-        result: Final[ValidationResult] = is_tree(self.root_node, self.network)
+        result: Final[ValidationResult] = is_tree(self.root_node, self.tree_network)
         if not result.is_valid:
             raise ValueError("NodeTree network validation failed: " + "; ".join(str(e) for e in result.errors))
         return self
@@ -87,26 +160,26 @@ class NodeTree(BaseModel):
 
         Returns:
             A ``set[Id]`` containing the :attr:`~roam_pub.roam_node.RoamNode.id` of every node
-            in :attr:`network`.
+            in :attr:`tree_network`.
         """
-        return {n.id for n in self.network}
+        return {n.id for n in self.tree_network}
 
     def node_refs_ids(self) -> set[Id]:
         """Return the set of all :attr:`~roam_pub.roam_node.RoamNode.refs` ids across this tree's network.
 
-        Delegates to :func:`~roam_pub.roam_network.refs_ids` over :attr:`network`.
+        Delegates to :func:`~roam_pub.roam_network.refs_ids` over :attr:`tree_network`.
 
         Returns:
             A ``set[Id]`` containing every id found in any node's ``refs`` list; empty if no node
-            in :attr:`network` has any ``refs``.
+            in :attr:`tree_network` has any ``refs``.
         """
-        return refs_ids(self.network)
+        return refs_ids(self.tree_network)
 
     def external_refs_ids(self) -> set[Id]:
         """Return the subset of :meth:`node_refs_ids` ids that are not members of :meth:`node_ids`.
 
         These are ids referenced via ``:block/refs`` by nodes in this tree but resolved to nodes
-        that live outside the tree — i.e. pages or blocks not included in :attr:`network`.
+        that live outside the tree — i.e. pages or blocks not included in :attr:`tree_network`.
 
         Returns:
             A ``set[Id]`` equal to ``node_refs_ids() - node_ids()``; empty when every ref id
@@ -138,13 +211,13 @@ class NodeTreeDFSIterator(Iterator[RoamNode]):
     def __init__(self, tree: NodeTree) -> None:
         """Initialize the iterator from *tree*.
 
-        Builds an id-map over *tree.network* and seeds the stack with the
+        Builds an id-map over *tree.tree_network* and seeds the stack with the
         single root node.
 
         Args:
             tree: The :class:`NodeTree` to traverse.
         """
-        self._id_map: dict[Id, RoamNode] = {n.id: n for n in tree.network}
+        self._id_map: dict[Id, RoamNode] = {n.id: n for n in tree.tree_network}
         self._stack: list[RoamNode] = [tree.root_node]
 
     def __iter__(self) -> Iterator[RoamNode]:

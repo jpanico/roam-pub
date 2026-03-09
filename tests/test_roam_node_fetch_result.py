@@ -170,7 +170,7 @@ class TestNodeFetchResult:
         result: Final[NodeFetchResult] = self._make_result()
         assert result.fetch_spec.anchor.qualifier == _PAGE_TITLE
         assert result.anchor_tree is not None
-        assert len(result.anchor_tree.network) == 1
+        assert len(result.anchor_tree.tree_network) == 1
         assert result.nodes_by_uid is not None
         assert result.nodes_by_uid[_PAGE_UID].title == _PAGE_TITLE
 

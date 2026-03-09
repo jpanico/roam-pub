@@ -113,7 +113,7 @@ def _dump_node_tree(fetch_result: NodeFetchResult, node_props: str | None, conso
     console.print()
     console.print(node_rich_tree)
     console.print(
-        f"{len(fetch_result.anchor_tree.network)} node(s) in anchor tree, "
+        f"{len(fetch_result.anchor_tree.tree_network)} node(s) in anchor tree, "
         f"{len(fetch_result.network)} total node(s) in fetch result"
     )
 
@@ -136,7 +136,7 @@ def _dump_vertex_tree(vertex_tree: VertexTree | None, console: Console) -> None:
     console.rule("[bold]Vertex Tree[/bold]")
     console.print()
     console.print(vertex_rich_tree)
-    console.print(f"{len(vertex_tree.vertices)} vertex/vertices in vertex tree")
+    console.print(f"{len(vertex_tree.vertices)} vertices in vertex tree")
 
 
 def dump_trees(

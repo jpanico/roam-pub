@@ -60,7 +60,7 @@ def article0_node_tree() -> NodeTree:
     raw: Final[list[dict[str, object]]] = yaml.safe_load((FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
     network: Final[list[RoamNode]] = [RoamNode.model_validate(r) for r in raw]
     root_node: Final[RoamNode] = next(n for n in network if node_type(n) == NodeType.Page)
-    return NodeTree(network=network, root_node=root_node)
+    return NodeTree.build(super_network=network, root_node=root_node)
 
 
 def article0_vertex_tree() -> VertexTree:

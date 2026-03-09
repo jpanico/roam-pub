@@ -661,7 +661,7 @@ class TestTranscribeArticleFixture:
 
     def test_transcribe_article_nodes_matches_vertex_fixture(self) -> None:
         """Test that transcribing test_article_0_nodes.yaml produces the vertices in test_article_0_vertices.yaml."""
-        nodes = list(article0_node_tree().network)
+        nodes = list(article0_node_tree().tree_network)
         id_map: dict[Id, RoamNode] = {n.id: n for n in nodes}
 
         actual_vertices: list[Vertex] = [transcribe_node(n, id_map) for n in nodes]

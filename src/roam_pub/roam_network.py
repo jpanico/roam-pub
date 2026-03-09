@@ -5,6 +5,7 @@ Public symbols:
 - :data:`NodeNetwork` — a collection of :class:`~roam_pub.roam_node.RoamNode` instances.
 - :func:`all_children_present` — :data:`~roam_pub.validation.Validator` requiring all child ids in a
   :data:`NodeNetwork` to resolve to member nodes.
+- :func:`all_descendants` — collect all nodes reachable from an ancestor via child edges.
 - :func:`all_parents_present` — validator function requiring all non-root parent ids in a
   :data:`NodeNetwork` to resolve to member nodes; accepts a *root_node* argument whose own
   parent ids are exempt from the check.
@@ -184,6 +185,55 @@ def is_acyclic(network: NodeNetwork) -> ValidationError | None:
                     validator=is_acyclic,
                 )
     return None
+
+
+def all_descendants(ancestor: RoamNode, network: NodeNetwork) -> NodeNetwork:
+    """Collect all descendant nodes of *ancestor* reachable via child edges in *network*.
+
+    Performs an iterative depth-first traversal starting from *ancestor*, following each
+    node's :attr:`~roam_pub.roam_node.RoamNode.children` links.  The traversal is bounded
+    to *network*; any child id that cannot be resolved to a node in *network* raises a
+    :class:`ValueError`.
+
+    Args:
+        ancestor: The root node from which to start the traversal.  Must be a member of
+            *network*.
+        network: The collection of nodes to search.
+
+    Returns:
+        A :class:`NodeNetwork` containing every node reachable from *ancestor* via child
+        edges, excluding *ancestor* itself.  Nodes appear in DFS discovery order.
+
+    Raises:
+        ValueError: If *ancestor* is not present in *network*, or if any child id
+            encountered during traversal cannot be resolved to a node in *network*.
+    """
+    network_by_id: Final[dict[Id, RoamNode]] = {n.id: n for n in network}
+
+    if ancestor.id not in network_by_id:
+        raise ValueError(f"ancestor node (uid={ancestor.uid!r}, id={ancestor.id!r}) is not present in network")
+
+    result: Final[list[RoamNode]] = []
+    stack: Final[list[RoamNode]] = [ancestor]
+    visited: Final[set[Id]] = {ancestor.id}
+
+    while stack:
+        node: RoamNode = stack.pop()
+        if node.children:
+            for child_stub in node.children:
+                child_id: Id = child_stub.id
+                if child_id not in network_by_id:
+                    raise ValueError(
+                        f"child id={child_id!r} referenced by node (uid={node.uid!r}, id={node.id!r}) "
+                        f"is not resolvable in network"
+                    )
+                if child_id not in visited:
+                    visited.add(child_id)
+                    child_node: RoamNode = network_by_id[child_id]
+                    result.append(child_node)
+                    stack.append(child_node)
+
+    return result
 
 
 def refs_ids(network: NodeNetwork) -> set[Id]:

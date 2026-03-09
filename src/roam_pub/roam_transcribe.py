@@ -409,7 +409,7 @@ def transcribe_node(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
 def transcribe(node_tree: NodeTree) -> VertexTree:
     """Transcribe every node in *node_tree* into a :class:`~roam_pub.graph.VertexTree`.
 
-    Builds an id-map from *node_tree.network*, then applies :func:`transcribe_node`
+    Builds an id-map from *node_tree.tree_network*, then applies :func:`transcribe_node`
     to each node in insertion order.
 
     Args:
@@ -417,10 +417,10 @@ def transcribe(node_tree: NodeTree) -> VertexTree:
 
     Returns:
         A :class:`~roam_pub.graph.VertexTree` containing one
-        :class:`~roam_pub.graph.Vertex` per node in *node_tree.network*.
+        :class:`~roam_pub.graph.Vertex` per node in *node_tree.tree_network*.
 
     Raises:
         ValueError: If any node has neither a ``title`` nor a ``string`` field set.
     """
-    id_map: dict[Id, RoamNode] = {n.id: n for n in node_tree.network}
-    return VertexTree(vertices=[transcribe_node(n, id_map) for n in node_tree.network])
+    id_map: dict[Id, RoamNode] = {n.id: n for n in node_tree.tree_network}
+    return VertexTree(vertices=[transcribe_node(n, id_map) for n in node_tree.tree_network])

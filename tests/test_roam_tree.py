@@ -215,7 +215,13 @@ class TestNodeTree:
     def test_article_fixture_is_valid_tree(self) -> None:
         """Test that test_article_0_nodes.yaml constructs a valid NodeTree without raising."""
         node_tree = article0_node_tree()
-        assert node_tree.network
+        assert node_tree.tree_network
+
+    def test_direct_construction_raises(self) -> None:
+        """Test that constructing NodeTree directly (bypassing build) raises ValueError."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        with pytest.raises(Exception, match="NodeTree.build"):
+            NodeTree(tree_network=[root], root_node=root)
 
 
 # ---------------------------------------------------------------------------
@@ -229,13 +235,13 @@ class TestNodeTreeNodeIds:
     def test_single_root_returns_singleton(self) -> None:
         """Test that a tree with only a root node returns a set containing just root.id."""
         root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        tree = NodeTree(network=[root], root_node=root)
+        tree = NodeTree.build(super_network=[root], root_node=root)
         assert tree.node_ids() == {1}
 
     def test_article_fixture_node_ids_matches_network(self) -> None:
-        """Test that node_ids() equals {n.id for n in tree.network} for the article fixture."""
+        """Test that node_ids() equals {n.id for n in tree.tree_network} for the article fixture."""
         tree = article0_node_tree()
-        assert tree.node_ids() == {n.id for n in tree.network}
+        assert tree.node_ids() == {n.id for n in tree.tree_network}
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +255,7 @@ class TestNodeTreeNodeRefsIds:
     def test_no_refs_returns_empty_set(self) -> None:
         """Test that a tree whose nodes have no refs returns an empty set."""
         root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        tree = NodeTree(network=[root], root_node=root)
+        tree = NodeTree.build(super_network=[root], root_node=root)
         assert tree.node_refs_ids() == set()
 
     def test_block_with_ref_returns_ref_id(self) -> None:
@@ -265,7 +271,8 @@ class TestNodeTreeNodeRefsIds:
             page=IdObject(id=1),
             refs=[IdObject(id=99)],
         )
-        tree = NodeTree(network=[root, block], root_node=root)
+        ext = RoamNode(uid="extpage01", id=99, time=STUB_TIME, user=STUB_USER, title="some page", children=[])
+        tree = NodeTree.build(super_network=[root, block, ext], root_node=root)
         assert tree.node_refs_ids() == {99}
 
 
@@ -284,7 +291,7 @@ class TestNodeTreeExternalRefsIds:
     def test_no_refs_returns_empty_set(self) -> None:
         """Test that a tree with no refs at all returns an empty set."""
         root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        tree = NodeTree(network=[root], root_node=root)
+        tree = NodeTree.build(super_network=[root], root_node=root)
         assert tree.external_refs_ids() == set()
 
     def test_no_refs_on_block_nodes_returns_empty_set(self) -> None:
@@ -299,7 +306,7 @@ class TestNodeTreeExternalRefsIds:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        tree = NodeTree(network=[root, block], root_node=root)
+        tree = NodeTree.build(super_network=[root, block], root_node=root)
         assert tree.external_refs_ids() == set()
 
     # ------------------------------------------------------------------
@@ -319,7 +326,7 @@ class TestNodeTreeExternalRefsIds:
             page=IdObject(id=1),
             refs=[IdObject(id=1)],  # refs back to the root page — internal
         )
-        tree = NodeTree(network=[root, block], root_node=root)
+        tree = NodeTree.build(super_network=[root, block], root_node=root)
         assert tree.external_refs_ids() == set()
 
     # ------------------------------------------------------------------
@@ -337,9 +344,10 @@ class TestNodeTreeExternalRefsIds:
             string="[[External]]",
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
-            refs=[IdObject(id=99)],  # id=99 not in network
+            refs=[IdObject(id=99)],  # id=99 not in tree_network
         )
-        tree = NodeTree(network=[root, block], root_node=root)
+        ext = RoamNode(uid="extpage01", id=99, time=STUB_TIME, user=STUB_USER, title="External", children=[])
+        tree = NodeTree.build(super_network=[root, block, ext], root_node=root)
         assert tree.external_refs_ids() == {99}
 
     # ------------------------------------------------------------------
@@ -359,7 +367,8 @@ class TestNodeTreeExternalRefsIds:
             page=IdObject(id=1),
             refs=[IdObject(id=1), IdObject(id=99)],  # id=1 internal, id=99 external
         )
-        tree = NodeTree(network=[root, block], root_node=root)
+        ext = RoamNode(uid="extpage01", id=99, time=STUB_TIME, user=STUB_USER, title="External", children=[])
+        tree = NodeTree.build(super_network=[root, block, ext], root_node=root)
         assert tree.external_refs_ids() == {99}
 
     def test_multiple_external_refs_across_nodes(self) -> None:
@@ -394,7 +403,9 @@ class TestNodeTreeExternalRefsIds:
             page=IdObject(id=1),
             refs=[IdObject(id=1), IdObject(id=60)],  # id=1 internal, id=60 external
         )
-        tree = NodeTree(network=[root, block_a, block_b], root_node=root)
+        ext_a = RoamNode(uid="extpage01", id=50, time=STUB_TIME, user=STUB_USER, title="ExtA", children=[])
+        ext_b = RoamNode(uid="extpage02", id=60, time=STUB_TIME, user=STUB_USER, title="ExtB", children=[])
+        tree = NodeTree.build(super_network=[root, block_a, block_b, ext_a, ext_b], root_node=root)
         assert tree.external_refs_ids() == {50, 60}
 
     # ------------------------------------------------------------------
@@ -428,7 +439,7 @@ class TestNodeTreeDFSIterator:
     def test_single_node_tree_yields_root(self) -> None:
         """Test that a one-node tree yields only the root node."""
         root = RoamNode(uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        tree = NodeTree(network=[root], root_node=root)
+        tree = NodeTree.build(super_network=[root], root_node=root)
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001"]
 
     def test_two_node_tree_yields_root_then_child(self) -> None:
@@ -444,7 +455,7 @@ class TestNodeTreeDFSIterator:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        tree = NodeTree(network=[root, child], root_node=root)
+        tree = NodeTree.build(super_network=[root, child], root_node=root)
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "chld00001"]
 
     def test_children_yielded_in_ascending_order_field(self) -> None:
@@ -478,7 +489,7 @@ class TestNodeTreeDFSIterator:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        tree = NodeTree(network=[root, child_first, child_second], root_node=root)
+        tree = NodeTree.build(super_network=[root, child_first, child_second], root_node=root)
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "chld00002", "chld00001"]
 
     def test_preorder_visits_subtree_before_sibling(self) -> None:
@@ -522,7 +533,7 @@ class TestNodeTreeDFSIterator:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        tree = NodeTree(network=[root, node_a, node_a1, node_b], root_node=root)
+        tree = NodeTree.build(super_network=[root, node_a, node_a1, node_b], root_node=root)
         assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "nodeA0001", "nodeA1001", "nodeB0001"]
 
     def test_all_nodes_yielded_exactly_once(self) -> None:
@@ -555,7 +566,7 @@ class TestNodeTreeDFSIterator:
             parents=[IdObject(id=1)],
             page=IdObject(id=1),
         )
-        tree = NodeTree(network=[root, child_a, child_b], root_node=root)
+        tree = NodeTree.build(super_network=[root, child_a, child_b], root_node=root)
         yielded: list[RoamNode] = list(NodeTreeDFSIterator(tree))
         assert len(yielded) == 3
         assert len({n.uid for n in yielded}) == 3
@@ -563,7 +574,7 @@ class TestNodeTreeDFSIterator:
     def test_iterator_exhausted_raises_stop_iteration(self) -> None:
         """Test that __next__ raises StopIteration once all nodes have been yielded."""
         root = RoamNode(uid="root00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
-        tree = NodeTree(network=[root], root_node=root)
+        tree = NodeTree.build(super_network=[root], root_node=root)
         it: NodeTreeDFSIterator = NodeTreeDFSIterator(tree)
         assert next(it).uid == "root00001"
         with pytest.raises(StopIteration):
@@ -573,16 +584,16 @@ class TestNodeTreeDFSIterator:
         """Test that the iterator yields every node in the article fixture exactly once."""
         tree = article0_node_tree()
         yielded: list[RoamNode] = list(NodeTreeDFSIterator(tree))
-        assert len(yielded) == len(tree.network)
-        assert {n.uid for n in yielded} == {n.uid for n in tree.network}
+        assert len(yielded) == len(tree.tree_network)
+        assert {n.uid for n in yielded} == {n.uid for n in tree.tree_network}
 
     def test_article_fixture_parent_always_precedes_children(self) -> None:
         """Test that every parent node appears before all of its children in the traversal."""
         tree = article0_node_tree()
-        id_map: dict[Id, RoamNode] = {n.id: n for n in tree.network}
+        id_map: dict[Id, RoamNode] = {n.id: n for n in tree.tree_network}
         yielded: list[RoamNode] = list(NodeTreeDFSIterator(tree))
         position: dict[str, int] = {n.uid: i for i, n in enumerate(yielded)}
-        for node in tree.network:
+        for node in tree.tree_network:
             if node.children:
                 for child_stub in node.children:
                     child: RoamNode = id_map[child_stub.id]

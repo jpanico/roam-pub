@@ -420,7 +420,7 @@ class TestFetchRoamNodesFetchByPageTitle:
         )
         logger.debug("result: %s", result)
 
-        fixture_nodes = article0_node_tree().network
+        fixture_nodes = article0_node_tree().tree_network
 
         assert [_stable_node_dict(n) for n in sorted(result.network, key=lambda n: n.uid)] == [
             _stable_node_dict(n) for n in sorted(fixture_nodes, key=lambda n: n.uid)
@@ -470,7 +470,7 @@ class TestFetchRoamNodesFetchByNodeUid:
         node_uid = "wdMgyBiP9"
         section2_uids: set[str] = {"wdMgyBiP9", "drtANJYTg", "5f1ahOFdp", "yFUau9Cpg", "bxkcECGwN"}
 
-        all_fixture_nodes = article0_node_tree().network
+        all_fixture_nodes = article0_node_tree().tree_network
         expected_nodes: list[RoamNode] = [n for n in all_fixture_nodes if n.uid in section2_uids]
 
         result: NodeFetchResult = FetchRoamNodes.fetch_by_node_uid(
@@ -495,7 +495,7 @@ class TestFetchRoamNodesFetchByNodeUid:
         # UIDs in the Section 2 subtree: root + all descendants
         section2_uids: set[str] = {"wdMgyBiP9", "drtANJYTg", "5f1ahOFdp", "yFUau9Cpg", "bxkcECGwN"}
 
-        all_fixture_nodes = article0_node_tree().network
+        all_fixture_nodes = article0_node_tree().tree_network
         expected_nodes: list[RoamNode] = [n for n in all_fixture_nodes if n.uid in section2_uids]
 
         mock_response: MagicMock = MagicMock()

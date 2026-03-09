@@ -1,7 +1,10 @@
 """Tests for the roam_network module."""
 
+import pytest
+
 from roam_pub.roam_network import (
     all_children_present,
+    all_descendants,
     all_parents_present,
     has_unique_ids,
     is_acyclic,
@@ -12,6 +15,236 @@ from roam_pub.roam_primitives import IdObject
 from roam_pub.validation import ValidationError
 
 from conftest import STUB_TIME, STUB_USER, article0_node_tree
+
+
+class TestAllDescendants:
+    """Tests for all_descendants."""
+
+    # ------------------------------------------------------------------
+    # ancestor is a leaf → empty result
+    # ------------------------------------------------------------------
+
+    def test_leaf_ancestor_returns_empty(self) -> None:
+        """Test that an ancestor with no children returns an empty list."""
+        ancestor = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        assert all_descendants(ancestor, [ancestor]) == []
+
+    def test_ancestor_with_none_children_returns_empty(self) -> None:
+        """Test that an ancestor whose children field is None returns an empty list."""
+        ancestor = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="leaf",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
+        assert all_descendants(ancestor, [ancestor]) == []
+
+    # ------------------------------------------------------------------
+    # single-level descendants
+    # ------------------------------------------------------------------
+
+    def test_single_child_returned(self) -> None:
+        """Test that an ancestor with one child returns a list containing just that child."""
+        ancestor = RoamNode(
+            uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)]
+        )
+        child = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="child",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
+        assert all_descendants(ancestor, [ancestor, child]) == [child]
+
+    def test_multiple_direct_children_all_returned(self) -> None:
+        """Test that all direct children of an ancestor are returned."""
+        ancestor = RoamNode(
+            uid="page00001",
+            id=1,
+            time=STUB_TIME,
+            user=STUB_USER,
+            title="stub",
+            children=[IdObject(id=10), IdObject(id=20)],
+        )
+        child1 = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="c1",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
+        child2 = RoamNode(
+            uid="block0002",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="c2",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
+        result = all_descendants(ancestor, [ancestor, child1, child2])
+        assert {n.id for n in result} == {10, 20}
+
+    # ------------------------------------------------------------------
+    # multi-level descendants
+    # ------------------------------------------------------------------
+
+    def test_deep_chain_returns_all_descendants(self) -> None:
+        """Test that a linear chain ancestor→child→grandchild returns both descendants."""
+        ancestor = RoamNode(
+            uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)]
+        )
+        child = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="child",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            children=[IdObject(id=20)],
+        )
+        grandchild = RoamNode(
+            uid="block0002",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="grandchild",
+            parents=[IdObject(id=10)],
+            page=IdObject(id=1),
+        )
+        result = all_descendants(ancestor, [ancestor, child, grandchild])
+        assert {n.id for n in result} == {10, 20}
+
+    def test_branching_tree_returns_all_descendants(self) -> None:
+        """Test that a branching tree returns every node reachable from the ancestor."""
+        ancestor = RoamNode(
+            uid="page00001",
+            id=1,
+            time=STUB_TIME,
+            user=STUB_USER,
+            title="stub",
+            children=[IdObject(id=10), IdObject(id=20)],
+        )
+        child1 = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="c1",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            children=[IdObject(id=30)],
+        )
+        child2 = RoamNode(
+            uid="block0002",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="c2",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            children=[IdObject(id=40)],
+        )
+        grandchild1 = RoamNode(
+            uid="block0003",
+            id=30,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="gc1",
+            parents=[IdObject(id=10)],
+            page=IdObject(id=1),
+        )
+        grandchild2 = RoamNode(
+            uid="block0004",
+            id=40,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="gc2",
+            parents=[IdObject(id=20)],
+            page=IdObject(id=1),
+        )
+        network = [ancestor, child1, child2, grandchild1, grandchild2]
+        result = all_descendants(ancestor, network)
+        assert {n.id for n in result} == {10, 20, 30, 40}
+
+    # ------------------------------------------------------------------
+    # ancestor excluded from result
+    # ------------------------------------------------------------------
+
+    def test_ancestor_not_included_in_result(self) -> None:
+        """Test that the ancestor itself is never included in the returned NodeNetwork."""
+        ancestor = RoamNode(
+            uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)]
+        )
+        child = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="child",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
+        result = all_descendants(ancestor, [ancestor, child])
+        assert ancestor not in result
+
+    # ------------------------------------------------------------------
+    # unreachable nodes in network are excluded
+    # ------------------------------------------------------------------
+
+    def test_unreachable_nodes_excluded(self) -> None:
+        """Test that nodes in the network that are not reachable from ancestor are excluded."""
+        ancestor = RoamNode(
+            uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)]
+        )
+        child = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="child",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
+        unrelated = RoamNode(
+            uid="block0099",
+            id=99,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="unrelated",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
+        result = all_descendants(ancestor, [ancestor, child, unrelated])
+        assert {n.id for n in result} == {10}
+
+    # ------------------------------------------------------------------
+    # error cases
+    # ------------------------------------------------------------------
+
+    def test_ancestor_not_in_network_raises(self) -> None:
+        """Test that passing an ancestor not present in the network raises ValueError."""
+        ancestor = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        other = RoamNode(uid="page00002", id=2, time=STUB_TIME, user=STUB_USER, title="other", children=[])
+        with pytest.raises(ValueError, match="is not present in network"):
+            all_descendants(ancestor, [other])
+
+    def test_unresolvable_child_id_raises(self) -> None:
+        """Test that a child id not present in the network raises ValueError."""
+        ancestor = RoamNode(
+            uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=99)]
+        )
+        with pytest.raises(ValueError, match="is not resolvable in network"):
+            all_descendants(ancestor, [ancestor])
 
 
 class TestAllChildrenPresent:
@@ -769,4 +1002,4 @@ class TestRefsIds:
         The test_article_0 fixture has no wikilinks, so every node's refs field
         is None and refs_ids should return an empty set.
         """
-        assert refs_ids(article0_node_tree().network) == set()
+        assert refs_ids(article0_node_tree().tree_network) == set()

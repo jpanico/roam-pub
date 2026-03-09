@@ -83,6 +83,10 @@ All code written or modified by Claude MUST follow these conventions — no exce
 
 ## Reference Docs
 - `docs/roam-md.md` — Roam flavored Markdown vs. CommonMark differences (relevant to normalization work)
+- `docs/roam-local-api.md` — Roam Local API reference (endpoints, request/response shapes)
+- `docs/roam-querying.md` — Datalog query patterns used to fetch Roam nodes
+- `docs/roam-schema.md` — Roam Datomic schema reference (attributes, value types, cardinality)
+- `docs/processing_pipeline.md` — high-level overview of the core data processing pipeline
 
 ## Environment Variables
 - `ROAM_LOCAL_API_PORT` — port for Roam Local API (all CLI tools)
