@@ -46,7 +46,8 @@ import logging
 from typing import Annotated, Final
 
 import typer
-from rich.console import Console
+from rich.console import Console, Group
+from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree as RichTree
 
@@ -62,7 +63,7 @@ from roam_pub.roam_tree_loader import fetch_roam_trees
 from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.logging_config import configure_logging
-from roam_pub.roam_primitives import UID_PATTERN
+from roam_pub.roam_primitives import Id, UID_PATTERN
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -93,8 +94,9 @@ def _dump_node_tree(fetch_result: NodeFetchResult, node_props: str | None, conso
 
     Logs a warning and returns early when
     :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.anchor_tree` is ``None``.
-    After the tree, prints one :func:`~roam_pub.rich_rendering.make_node_panel` panel per
-    node in :attr:`~roam_pub.roam_tree.NodeTree.refs_by_id` (if any).
+    After the tree, prints a ``refs`` box containing one
+    :func:`~roam_pub.rich_rendering.make_node_panel` panel per node in
+    :attr:`~roam_pub.roam_tree.NodeTree.refs_by_id` (omitted when empty).
 
     Args:
         fetch_result: Fetch result whose :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.anchor_tree`
@@ -114,8 +116,26 @@ def _dump_node_tree(fetch_result: NodeFetchResult, node_props: str | None, conso
     console.rule("[bold]Node Tree[/bold]")
     console.print()
     console.print(node_rich_tree)
-    for ref_node in fetch_result.anchor_tree.refs_by_id.values():
-        console.print(make_node_panel(ref_node, effective_props))
+    if fetch_result.anchor_tree.refs_by_id:
+        referencing_ids_by_ref_id: Final[dict[Id, list[Id]]] = {
+            ref_id: [
+                n.id
+                for n in fetch_result.anchor_tree.tree_network
+                if n.refs is not None and any(r.id == ref_id for r in n.refs)
+            ]
+            for ref_id in fetch_result.anchor_tree.refs_by_id
+        }
+        ref_rows: Final[list[Table]] = []
+        for ref_node in fetch_result.anchor_tree.refs_by_id.values():
+            back_ref_text: str = "  ".join(str(i) for i in referencing_ids_by_ref_id[ref_node.id])
+            back_refs_panel: Panel = Panel(back_ref_text or "(none)", title="referenced by")
+            row: Table = Table.grid(padding=(0, 1))
+            row.add_column()
+            row.add_column()
+            row.add_row(make_node_panel(ref_node, effective_props), back_refs_panel)
+            ref_rows.append(row)
+        refs_box: Final[Panel] = Panel(Group(*ref_rows), title="refs")
+        console.print(refs_box)
     console.print(
         f"{len(fetch_result.anchor_tree.tree_network)} node(s) in anchor tree, "
         f"{len(fetch_result.network)} total node(s) in fetch result"

@@ -1,0 +1,330 @@
+SYZfEd44O:
+  uid: SYZfEd44O
+  id: 4225
+  time: 1773091095813
+  user:
+    id: 3
+  string: null
+  order: null
+  heading: null
+  children:
+  - id: 4226
+  - id: 4227
+  - id: 4228
+  refs:
+  - id: 4223
+  page: null
+  open: null
+  parents: null
+  props: null
+  title: '[[Test Article]] 1'
+  sidebar: 20
+  attrs: null
+  lookup: null
+  seen_by: null
+LBFKibPIj:
+  uid: LBFKibPIj
+  id: 4223
+  time: 1773090962400
+  user:
+    id: 3
+  string: null
+  order: null
+  heading: null
+  children:
+  - id: 4224
+  refs: null
+  page: null
+  open: null
+  parents: null
+  props: null
+  title: Test Article
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+aVVGVVPLE:
+  uid: aVVGVVPLE
+  id: 4234
+  time: 1773091348554
+  user:
+    id: 3
+  string: '{{[[embed]]: ((drtANJYTg))}}'
+  order: 0
+  heading: null
+  children: null
+  refs:
+  - id: 867
+  - id: 3332
+  page:
+    id: 4225
+  open: true
+  parents:
+  - id: 4225
+  - id: 4227
+  - id: 4233
+  props: null
+  title: null
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+dYYKZExzI:
+  uid: dYYKZExzI
+  id: 4229
+  time: 1773091262428
+  user:
+    id: 3
+  string: embed (internal)
+  order: 0
+  heading: null
+  children:
+  - id: 4232
+  refs: null
+  page:
+    id: 4225
+  open: true
+  parents:
+  - id: 4225
+  - id: 4226
+  props: null
+  title: null
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+l7f2Qf90W:
+  uid: l7f2Qf90W
+  id: 4230
+  time: 1773091226849
+  user:
+    id: 3
+  string: section 3.1
+  order: 0
+  heading: 2
+  children:
+  - id: 4231
+  refs: null
+  page:
+    id: 4225
+  open: true
+  parents:
+  - id: 4225
+  - id: 4228
+  props: null
+  title: null
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+LfXmNr-tV:
+  uid: LfXmNr-tV
+  id: 4228
+  time: 1773091129652
+  user:
+    id: 3
+  string: Section 3
+  order: 2
+  heading: 2
+  children:
+  - id: 4230
+  refs: null
+  page:
+    id: 4225
+  open: true
+  parents:
+  - id: 4225
+  props: null
+  title: null
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+o2hTH3dbf:
+  uid: o2hTH3dbf
+  id: 867
+  time: 1685364864059
+  user:
+    id: 3
+  string: null
+  order: null
+  heading: null
+  children: null
+  refs: null
+  page: null
+  open: null
+  parents: null
+  props: null
+  title: embed
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+XkSI5xwe5:
+  uid: XkSI5xwe5
+  id: 4232
+  time: 1773091254243
+  user:
+    id: 3
+  string: '{{[[embed]]: ((vH2I8xRLZ))}}'
+  order: 0
+  heading: null
+  children: null
+  refs:
+  - id: 867
+  - id: 4231
+  page:
+    id: 4225
+  open: true
+  parents:
+  - id: 4225
+  - id: 4226
+  - id: 4229
+  props: null
+  title: null
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+LfaVt18Iw:
+  uid: LfaVt18Iw
+  id: 4226
+  time: 1773091124068
+  user:
+    id: 3
+  string: Section 1
+  order: 0
+  heading: 2
+  children:
+  - id: 4229
+  refs: null
+  page:
+    id: 4225
+  open: true
+  parents:
+  - id: 4225
+  props: null
+  title: null
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+vH2I8xRLZ:
+  uid: vH2I8xRLZ
+  id: 4231
+  time: 1773091241939
+  user:
+    id: 3
+  string: section 3.1.1
+  order: 0
+  heading: null
+  children: null
+  refs: null
+  page:
+    id: 4225
+  open: true
+  parents:
+  - id: 4225
+  - id: 4228
+  - id: 4230
+  props: null
+  title: null
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+drtANJYTg:
+  uid: drtANJYTg
+  id: 3332
+  time: 1770568965850
+  user:
+    id: 3
+  string: Section 2.1
+  order: 0
+  heading: 3
+  children:
+  - id: 4025
+  refs: null
+  page:
+    id: 3327
+  open: true
+  parents:
+  - id: 3327
+  - id: 3329
+  props: null
+  title: null
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+6olpFWiw1:
+  uid: 6olpFWiw1
+  id: 3327
+  time: 1772623435954
+  user:
+    id: 3
+  string: null
+  order: null
+  heading: null
+  children:
+  - id: 3328
+  - id: 3329
+  - id: 3330
+  refs: null
+  page: null
+  open: null
+  parents: null
+  props: null
+  title: Test Article 0
+  sidebar: 19
+  attrs: null
+  lookup: null
+  seen_by: null
+8jkmASa1c:
+  uid: 8jkmASa1c
+  id: 4233
+  time: 1773091367896
+  user:
+    id: 3
+  string: embed (external -- from [[Test Article 0]])
+  order: 0
+  heading: null
+  children:
+  - id: 4234
+  refs:
+  - id: 3327
+  page:
+    id: 4225
+  open: true
+  parents:
+  - id: 4225
+  - id: 4227
+  props: null
+  title: null
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null
+d3T1YpYig:
+  uid: d3T1YpYig
+  id: 4227
+  time: 1773091127227
+  user:
+    id: 3
+  string: Section 2
+  order: 1
+  heading: 2
+  children:
+  - id: 4233
+  refs: null
+  page:
+    id: 4225
+  open: true
+  parents:
+  - id: 4225
+  props: null
+  title: null
+  sidebar: null
+  attrs: null
+  lookup: null
+  seen_by: null

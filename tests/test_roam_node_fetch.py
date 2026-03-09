@@ -3,18 +3,20 @@
 import json
 import logging
 import os
+from typing import Final
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+import yaml
 from pydantic import ValidationError
-from roam_pub.roam_local_api import ApiEndpoint
+from roam_pub.roam_local_api import ApiEndpoint, Response as LocalApiResponse
 from roam_pub.roam_primitives import IdObject
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
 from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchResult, NodeFetchSpec
 
-from conftest import article0_node_tree
+from conftest import FIXTURES_YAML_DIR, article0_node_tree
 
 logger = logging.getLogger(__name__)
 
@@ -405,7 +407,7 @@ class TestFetchRoamNodesFetchByPageTitle:
 
     @pytest.mark.live
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
-    def test_fetch_testarticle(self, live_api_endpoint: ApiEndpoint) -> None:
+    def test_fetch_testarticle0(self, live_api_endpoint: ApiEndpoint) -> None:
         """Live test: fetch all descendant blocks of a page and compare with fixture.
 
         Transient fields (``time``, ``user``, ``open``, ``sidebar``, ``lookup``,
@@ -517,3 +519,57 @@ class TestFetchRoamNodesFetchByNodeUid:
         assert [_stable_node_dict(n) for n in sorted(result.network, key=lambda n: n.uid)] == [
             _stable_node_dict(n) for n in sorted(expected_nodes, key=lambda n: n.uid)
         ]
+
+
+class TestFetchTestarticle1WithRefs:
+    """Unit tests for FetchRoamNodes._fetch with ``[[Test Article]] 1`` and ``include_refs=True``.
+
+    Replays the ``test_article_1_raw_result.yaml`` fixture through :meth:`FetchRoamNodes._fetch`
+    by patching :func:`~roam_pub.roam_local_api.invoke_action` so that no live Roam Desktop
+    connection is required, then asserts the produced :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult`
+    matches the ``test_article_1_anchor_tree.yaml`` and ``test_article_1_nodes_by_uid.yaml`` fixtures.
+    """
+
+    _PAGE_TITLE: Final[str] = "[[Test Article]] 1"
+
+    @pytest.fixture
+    def fetch_result(self, api_endpoint: ApiEndpoint) -> NodeFetchResult:
+        """Invoke ``_fetch`` with a mocked ``invoke_action`` replaying the raw-result fixture.
+
+        Loads ``test_article_1_raw_result.yaml``, wraps it in a
+        :class:`~roam_pub.roam_local_api.Response.Payload`, patches
+        :func:`~roam_pub.roam_local_api.invoke_action` to return that payload, then calls
+        :meth:`FetchRoamNodes._fetch` and returns the resulting
+        :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult`.
+        """
+        raw_result: list[list[dict[str, object]]] = yaml.safe_load(
+            (FIXTURES_YAML_DIR / "test_article_1_raw_result.yaml").read_text()
+        )
+        mock_payload: LocalApiResponse.Payload = LocalApiResponse.Payload(success=True, result=raw_result)
+        fetch_spec: NodeFetchSpec = NodeFetchSpec(
+            anchor=NodeFetchAnchor(qualifier=self._PAGE_TITLE),
+            include_refs=True,
+            include_node_tree=True,
+        )
+        request_payload = FetchRoamNodes.Request.payload_by_page_title(self._PAGE_TITLE, include_refs=True)
+        with patch("roam_pub.roam_node_fetch.invoke_action", return_value=mock_payload):
+            return FetchRoamNodes._fetch(request_payload, api_endpoint, fetch_spec)  # type: ignore[misc]
+
+    def test_anchor_tree_matches_fixture(self, fetch_result: NodeFetchResult) -> None:
+        """Anchor tree produced by ``_fetch`` must match ``test_article_1_anchor_tree.yaml``."""
+        expected: dict[str, object] = yaml.safe_load(
+            (FIXTURES_YAML_DIR / "test_article_1_anchor_tree.yaml").read_text()
+        )
+        assert fetch_result.anchor_tree is not None
+        assert fetch_result.anchor_tree.model_dump(mode="json") == expected
+
+    def test_nodes_by_uid_matches_fixture(self, fetch_result: NodeFetchResult) -> None:
+        """``nodes_by_uid`` produced by ``_fetch`` must match ``test_article_1_nodes_by_uid.yaml``."""
+        expected: dict[str, object] = yaml.safe_load(
+            (FIXTURES_YAML_DIR / "test_article_1_nodes_by_uid.yaml").read_text()
+        )
+        assert fetch_result.nodes_by_uid is not None
+        actual: dict[str, object] = {
+            uid: node.model_dump(mode="json") for uid, node in fetch_result.nodes_by_uid.items()
+        }
+        assert actual == expected
