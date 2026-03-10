@@ -130,7 +130,10 @@ class FetchRoamNodes:
         _REF_DESCENDANT_OR_JOIN_BRANCH: Final[str] = textwrap.indent(
             textwrap.dedent("""\
                 (and [?anchor :node/title ?title]
-                     (page-ref ?anchor ?ref)
+                     (descendant ?anchor ?block)
+                     [?block :block/string ?block-str]
+                     [(clojure.string/includes? ?block-str "{{[[embed]]:")]
+                     [?block :block/refs ?ref]
                      (descendant ?ref ?node))"""),
             "   ",
         )
@@ -174,8 +177,11 @@ class FetchRoamNodes:
            (via the ``descendant`` rule).
         3. Every node referenced via ``:block/refs`` from ``?anchor`` directly or from any of
            its descendants (via the ``page-ref`` rule).
-        4. Every block reachable through ``:block/children`` from any node matched by branch 3
-           (i.e. the full descendant subtree of each ref node).
+        4. Every block reachable through ``:block/children`` from any ``:block/refs`` target
+           of a descendant block of the anchor whose ``:block/string`` contains the embed
+           prefix ``{{[[embed]]:``.  This restricts descendant expansion to embedded
+           references only; non-embed refs are fetched as single nodes by branch 3 but their
+           subtrees are not included.
         """
 
         BY_NODE_UID_QUERY: Final[str] = textwrap.dedent("""\

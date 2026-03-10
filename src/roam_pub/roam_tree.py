@@ -97,8 +97,10 @@ class NodeTree(BaseModel):
                 drawn.  The :class:`~roam_pub.roam_node.RoamNode` instances in
                 *super_network* are a superset of the nodes that will form
                 :attr:`tree_network`.  Nodes outside :attr:`tree_network` are also
-                searched for :attr:`refs_by_id` — both direct ref targets and all of
-                their transitive descendants.
+                searched for :attr:`refs_by_id` — both direct ref targets and their
+                transitive descendants.  Child ids of ref nodes absent from
+                *super_network* are skipped silently: the fetch query intentionally omits
+                the subtrees of non-embed refs.
 
         Returns:
             A fully validated :class:`NodeTree`.
@@ -106,13 +108,12 @@ class NodeTree(BaseModel):
         Raises:
             ValueError: If *root_node* is not present in *super_network*, if any child
                 id encountered during tree extraction cannot be resolved within
-                *super_network*, if any direct refs id from :attr:`tree_network` cannot
-                be resolved within *super_network*, or if any child id encountered while
-                expanding the descendants of a direct ref node cannot be resolved within
-                *super_network*.
+                *super_network*, or if any direct refs id from :attr:`tree_network` cannot
+                be resolved within *super_network*.
             pydantic.ValidationError: If the extracted :attr:`tree_network` violates any
                 tree invariant.
         """
+        super_by_id: Final[dict[Id, RoamNode]] = {n.id: n for n in super_network}
         tree_ids: Final[set[Id]] = {root_node.id} | {n.id for n in all_descendants(root_node, super_network)}
         tree_network: Final[NodeNetwork] = [n for n in super_network if n.id in tree_ids]
         tree_refs_ids: Final[set[Id]] = refs_ids(tree_network)
@@ -123,10 +124,23 @@ class NodeTree(BaseModel):
                 f"refs id(s) {sorted(unresolvable_refs)!r} referenced in tree_network"
                 " cannot be resolved in super_network"
             )
+        # Expand refs_by_id with transitive descendants of direct ref nodes present in
+        # super_network.  Missing child ids are skipped silently — the fetch query only
+        # pulls subtrees for embed refs; non-embed ref subtrees are intentionally absent.
         refs_by_id: Final[dict[Id, RoamNode]] = dict(direct_refs)
-        for ref_node in direct_refs.values():
-            for desc in all_descendants(ref_node, super_network):
-                refs_by_id[desc.id] = desc
+        stack: Final[list[RoamNode]] = list(direct_refs.values())
+        while stack:
+            ref_node: RoamNode = stack.pop()
+            if not ref_node.children:
+                continue
+            for child_ref in ref_node.children:
+                if child_ref.id in refs_by_id:
+                    continue
+                child: RoamNode | None = super_by_id.get(child_ref.id)
+                if child is None:
+                    continue
+                refs_by_id[child_ref.id] = child
+                stack.append(child)
         cls._creating = True
         try:
             return cls(root_node=root_node, tree_network=tree_network, refs_by_id=refs_by_id)

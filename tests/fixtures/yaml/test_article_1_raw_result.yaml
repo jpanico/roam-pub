@@ -1,14 +1,3 @@
-# YAML fixture for the raw Datalog result of FetchRoamNodes.fetch_by_page_title(
-#   page_title='[[Test Article]] 1', include_refs=True
-# ) against the SCFH graph on 2026-03-10.
-#
-# Produced by BY_PAGE_TITLE_WITH_REFS_QUERY (4-branch or-join): captures the
-# anchor page, all its descendants, every :block/refs target, and the full
-# descendant subtree of each ref node.
-#
-# Serialised directly from NodeFetchResult.raw_result (the pre-RoamNode-parse
-# Datalog pull-block rows) with yaml.dump(default_flow_style=False,
-#   allow_unicode=True, sort_keys=False).
 - - prevent-clean: 1773091073222
     children:
     - id: 4226
@@ -23,18 +12,6 @@
     title: '[[Test Article]] 1'
     refs:
     - id: 4223
-- - string: topic for test fixtures used by roam-pub, dump_roam_tree.py. DO NOT REMOVE!
-    user:
-      id: 3
-    id: 4224
-    uid: 7MoH-wIQh
-    parents:
-    - id: 4223
-    time: 1773091048809
-    order: 0
-    open: true
-    page:
-      id: 4223
 - - user:
       id: 3
     time: 1773090962400
@@ -60,39 +37,6 @@
       ah-level: h4
     order: 0
     open: true
-    page:
-      id: 3327
-- - string: '![A flower](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94)'
-    user:
-      id: 3
-    id: 3336
-    uid: mPCzedeKx
-    parents:
-    - id: 3327
-    - id: 3328
-    - id: 3331
-    - id: 3334
-    time: 1770569707883
-    props:
-      image-size:
-        ? https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94
-        : width: 347
-          height: null
-    order: 0
-    open: false
-    page:
-      id: 3327
-- - string: 'AI assistant (Claude Opus 4.6): '
-    user:
-      id: 3
-    id: 4029
-    uid: FL32hVyCv
-    parents:
-    - id: 3327
-    - id: 3328
-    time: 1771538823824
-    order: 1
-    open: false
     page:
       id: 3327
 - - string: '{{[[embed]]: ((drtANJYTg))}}'
@@ -128,37 +72,6 @@
     page:
       id: 4225
 - - heading: 2
-    string: Section 1
-    children:
-    - id: 3331
-    - id: 4029
-    user:
-      id: 3
-    id: 3328
-    uid: 0EgPyHSZi
-    parents:
-    - id: 3327
-    time: 1770568919008
-    order: 0
-    open: true
-    page:
-      id: 3327
-- - heading: 2
-    string: Section 3
-    children:
-    - id: 3333
-    user:
-      id: 3
-    id: 3330
-    uid: 40bvW14UU
-    parents:
-    - id: 3327
-    time: 1770568926764
-    order: 2
-    open: true
-    page:
-      id: 3327
-- - heading: 2
     string: section 3.1
     children:
     - id: 4231
@@ -189,24 +102,6 @@
     open: true
     page:
       id: 4225
-- - string: illustration 1.1
-    children:
-    - id: 3336
-    user:
-      id: 3
-    id: 3334
-    uid: TaN67WqnA
-    parents:
-    - id: 3327
-    - id: 3328
-    - id: 3331
-    time: 1771512875819
-    props:
-      ah-level: h4
-    order: 0
-    open: true
-    page:
-      id: 3327
 - - id: 867
     uid: o2hTH3dbf
     time: 1685364864059
@@ -230,22 +125,6 @@
     refs:
     - id: 867
     - id: 4231
-- - heading: 2
-    string: Section 2
-    children:
-    - id: 3332
-    - id: 4026
-    user:
-      id: 3
-    id: 3329
-    uid: wdMgyBiP9
-    parents:
-    - id: 3327
-    time: 1770568922821
-    order: 1
-    open: true
-    page:
-      id: 3327
 - - heading: 2
     string: Section 1
     children:
@@ -275,22 +154,6 @@
     open: true
     page:
       id: 4225
-- - heading: 3
-    string: Section 1.1
-    children:
-    - id: 3334
-    user:
-      id: 3
-    id: 3331
-    uid: 3BX-iWc-p
-    parents:
-    - id: 3327
-    - id: 3328
-    time: 1770568958676
-    order: 0
-    open: true
-    page:
-      id: 3327
 - - string: Section 2.1.1.1
     user:
       id: 3
@@ -324,20 +187,6 @@
     open: true
     page:
       id: 3327
-- - heading: 3
-    string: Section 2.2
-    user:
-      id: 3
-    id: 4026
-    uid: 5f1ahOFdp
-    parents:
-    - id: 3327
-    - id: 3329
-    time: 1772563665137
-    order: 1
-    open: false
-    page:
-      id: 3327
 - - prevent-clean: 1770568893569
     children:
     - id: 3328
@@ -351,20 +200,6 @@
     time: 1772623435954
     title: Test Article 0
     view-type: bullet
-- - heading: 3
-    string: Section 3.1
-    user:
-      id: 3
-    id: 3333
-    uid: JW5PswS6v
-    parents:
-    - id: 3327
-    - id: 3330
-    time: 1770568971504
-    order: 0
-    open: false
-    page:
-      id: 3327
 - - string: embed (external -- from [[Test Article 0]])
     children:
     - id: 4234

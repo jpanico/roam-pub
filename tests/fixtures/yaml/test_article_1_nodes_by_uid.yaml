@@ -22,28 +22,6 @@ SYZfEd44O:
   attrs: null
   lookup: null
   seen_by: null
-7MoH-wIQh:
-  uid: 7MoH-wIQh
-  id: 4224
-  time: 1773091048809
-  user:
-    id: 3
-  string: topic for test fixtures used by roam-pub, dump_roam_tree.py. DO NOT REMOVE!
-  order: 0
-  heading: null
-  children: null
-  refs: null
-  page:
-    id: 4223
-  open: true
-  parents:
-  - id: 4223
-  props: null
-  title: null
-  sidebar: null
-  attrs: null
-  lookup: null
-  seen_by: null
 LBFKibPIj:
   uid: LBFKibPIj
   id: 4223
@@ -86,58 +64,6 @@ yFUau9Cpg:
   - id: 3332
   props:
     ah-level: h4
-  title: null
-  sidebar: null
-  attrs: null
-  lookup: null
-  seen_by: null
-mPCzedeKx:
-  uid: mPCzedeKx
-  id: 3336
-  time: 1770569707883
-  user:
-    id: 3
-  string: '![A flower](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94)'
-  order: 0
-  heading: null
-  children: null
-  refs: null
-  page:
-    id: 3327
-  open: false
-  parents:
-  - id: 3327
-  - id: 3328
-  - id: 3331
-  - id: 3334
-  props:
-    image-size:
-      ? https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94
-      : width: 347
-        height: null
-  title: null
-  sidebar: null
-  attrs: null
-  lookup: null
-  seen_by: null
-FL32hVyCv:
-  uid: FL32hVyCv
-  id: 4029
-  time: 1771538823824
-  user:
-    id: 3
-  string: 'AI assistant (Claude Opus 4.6): '
-  order: 1
-  heading: null
-  children: null
-  refs: null
-  page:
-    id: 3327
-  open: false
-  parents:
-  - id: 3327
-  - id: 3328
-  props: null
   title: null
   sidebar: null
   attrs: null
@@ -193,53 +119,6 @@ dYYKZExzI:
   attrs: null
   lookup: null
   seen_by: null
-0EgPyHSZi:
-  uid: 0EgPyHSZi
-  id: 3328
-  time: 1770568919008
-  user:
-    id: 3
-  string: Section 1
-  order: 0
-  heading: 2
-  children:
-  - id: 3331
-  - id: 4029
-  refs: null
-  page:
-    id: 3327
-  open: true
-  parents:
-  - id: 3327
-  props: null
-  title: null
-  sidebar: null
-  attrs: null
-  lookup: null
-  seen_by: null
-40bvW14UU:
-  uid: 40bvW14UU
-  id: 3330
-  time: 1770568926764
-  user:
-    id: 3
-  string: Section 3
-  order: 2
-  heading: 2
-  children:
-  - id: 3333
-  refs: null
-  page:
-    id: 3327
-  open: true
-  parents:
-  - id: 3327
-  props: null
-  title: null
-  sidebar: null
-  attrs: null
-  lookup: null
-  seen_by: null
 l7f2Qf90W:
   uid: l7f2Qf90W
   id: 4230
@@ -282,32 +161,6 @@ LfXmNr-tV:
   parents:
   - id: 4225
   props: null
-  title: null
-  sidebar: null
-  attrs: null
-  lookup: null
-  seen_by: null
-TaN67WqnA:
-  uid: TaN67WqnA
-  id: 3334
-  time: 1771512875819
-  user:
-    id: 3
-  string: illustration 1.1
-  order: 0
-  heading: null
-  children:
-  - id: 3336
-  refs: null
-  page:
-    id: 3327
-  open: true
-  parents:
-  - id: 3327
-  - id: 3328
-  - id: 3331
-  props:
-    ah-level: h4
   title: null
   sidebar: null
   attrs: null
@@ -359,30 +212,6 @@ XkSI5xwe5:
   attrs: null
   lookup: null
   seen_by: null
-wdMgyBiP9:
-  uid: wdMgyBiP9
-  id: 3329
-  time: 1770568922821
-  user:
-    id: 3
-  string: Section 2
-  order: 1
-  heading: 2
-  children:
-  - id: 3332
-  - id: 4026
-  refs: null
-  page:
-    id: 3327
-  open: true
-  parents:
-  - id: 3327
-  props: null
-  title: null
-  sidebar: null
-  attrs: null
-  lookup: null
-  seen_by: null
 LfaVt18Iw:
   uid: LfaVt18Iw
   id: 4226
@@ -424,30 +253,6 @@ vH2I8xRLZ:
   - id: 4225
   - id: 4228
   - id: 4230
-  props: null
-  title: null
-  sidebar: null
-  attrs: null
-  lookup: null
-  seen_by: null
-3BX-iWc-p:
-  uid: 3BX-iWc-p
-  id: 3331
-  time: 1770568958676
-  user:
-    id: 3
-  string: Section 1.1
-  order: 0
-  heading: 3
-  children:
-  - id: 3334
-  refs: null
-  page:
-    id: 3327
-  open: true
-  parents:
-  - id: 3327
-  - id: 3328
   props: null
   title: null
   sidebar: null
@@ -504,29 +309,6 @@ drtANJYTg:
   attrs: null
   lookup: null
   seen_by: null
-5f1ahOFdp:
-  uid: 5f1ahOFdp
-  id: 4026
-  time: 1772563665137
-  user:
-    id: 3
-  string: Section 2.2
-  order: 1
-  heading: 3
-  children: null
-  refs: null
-  page:
-    id: 3327
-  open: false
-  parents:
-  - id: 3327
-  - id: 3329
-  props: null
-  title: null
-  sidebar: null
-  attrs: null
-  lookup: null
-  seen_by: null
 6olpFWiw1:
   uid: 6olpFWiw1
   id: 3327
@@ -547,29 +329,6 @@ drtANJYTg:
   props: null
   title: Test Article 0
   sidebar: 19
-  attrs: null
-  lookup: null
-  seen_by: null
-JW5PswS6v:
-  uid: JW5PswS6v
-  id: 3333
-  time: 1770568971504
-  user:
-    id: 3
-  string: Section 3.1
-  order: 0
-  heading: 3
-  children: null
-  refs: null
-  page:
-    id: 3327
-  open: false
-  parents:
-  - id: 3327
-  - id: 3330
-  props: null
-  title: null
-  sidebar: null
   attrs: null
   lookup: null
   seen_by: null
