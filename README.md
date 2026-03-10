@@ -142,30 +142,34 @@ roam-pub/
 │       ├── rich_rendering.py      # Rich panel/tree rendering for NodeTree and VertexTree
 │       ├── validation.py          # Generic accumulator-pipeline validation framework
 │       ├── roam_primitives.py     # Foundational type aliases, UID_PATTERN/UID_RE, IMAGE_LINK_RE (dep root)
-│       ├── roam_node.py           # RoamNode, NodeNetwork; tree-invariant validators (is_root, all_children_present, all_parents_present, has_unique_ids, is_acyclic)
-│       ├── roam_tree.py           # NodeTree, NodeTreeDFSIterator, is_tree
+│       ├── roam_node.py           # RoamNode, NodeType, node_type, NodesByUid
+│       ├── roam_network.py        # NodeNetwork type alias; network validators and utilities (all_descendants, refs_ids)
+│       ├── roam_tree.py           # NodeTree (build() factory, tree_network/refs_by_id fields), NodeTreeDFSIterator, is_tree
 │       ├── graph.py               # Vertex union, VertexTree, VertexTreeDFSIterator
 │       ├── roam_schema.py         # Datomic schema model types (RoamNamespace, etc.)
 │       ├── roam_asset.py          # Cloud Firestore asset model
 │       ├── roam_local_api.py      # ApiEndpoint model for the Roam Local API
+│       ├── roam_node_fetch_result.py # NodeFetchAnchor, NodeFetchSpec, NodeFetchResult; fetch result model and factories
 │       ├── roam_node_fetch.py     # Fetch RoamNode records via Local API; by page title or by node UID
 │       ├── roam_schema_fetch.py   # Fetch Datomic schema via Local API
 │       ├── roam_asset_fetch.py    # Fetch Firestore assets via Local API
 │       └── logging_config.py      # Colorized logging; reads LOG_LEVEL env var
 ├── tests/                         # pytest test suite
 │   ├── fixtures/                  # Sample markdown, images, JSON, YAML
+│   ├── test_export_roam_tree.py
 │   ├── test_roam_asset_fetch.py
 │   ├── test_roam_graph.py
 │   ├── test_roam_local_api.py
 │   ├── test_roam_md_bundle.py
 │   ├── test_roam_md_normalize.py
+│   ├── test_roam_network.py
 │   ├── test_roam_node.py
 │   ├── test_roam_node_fetch.py
+│   ├── test_roam_node_fetch_result.py
 │   ├── test_roam_render_md.py
 │   ├── test_roam_schema_fetch.py
 │   ├── test_roam_transcribe.py
-│   ├── test_roam_tree.py
-│   └── test_export_roam_tree.py
+│   └── test_roam_tree.py
 ├── scripts/
 │   ├── dump-roam-tree.sh           # Shell wrapper for dump-roam-tree
 │   ├── export-roam-tree.sh         # Shell wrapper for export-roam-tree
@@ -173,6 +177,7 @@ roam-pub/
 │   └── refresh-mdbundle-folders.sh # Refresh existing .mdbundle folders
 ├── docs/
 │   ├── MDBUNDLE_SETUP.md           # macOS .mdbundle integration guide
+│   ├── processing_pipeline.md      # High-level overview of the core data processing pipeline
 │   ├── roam-local-api.md           # Roam Local API (JSON over HTTP) reference
 │   ├── roam-md.md                  # Roam-flavored Markdown vs. CommonMark differences
 │   ├── roam-querying.md            # Datalog query language and query reference
@@ -230,17 +235,32 @@ export-roam-tree "Test Article"
 Fetches a Roam page or node subtree and renders it as a colorized tree in the terminal. Useful for inspecting the raw node structure or the normalized vertex structure. The positional argument follows the same page-title-vs-node-UID inference as `export-roam-tree`.
 
 ```bash
-dump-roam-tree <page_title_or_node_uid> -p <port> -g <graph> -t <token> [--mode v|n|vn] [--node-props <props>]
+dump-roam-tree <page_title_or_node_uid> -p <port> -g <graph> -t <token> [--vertex-tree|-v] [--node-tree|-n] [--raw-results|-r] [--include-refs|-i] [--node-props <props>]
 ```
 
-- `--mode v` (default) — vertex tree only
-- `--mode n` — raw node tree only
-- `--mode vn` — both trees
-- `--node-props heading,parents` — select which `RoamNode` fields appear in each panel
+Flags (all are boolean toggles with a `--no-*` / uppercase-letter inverse):
+
+| Flag | Short | Default | Effect |
+|---|---|---|---|
+| `--vertex-tree` | `-v/-V` | **on** | Render the normalized vertex tree |
+| `--node-tree` | `-n/-N` | off | Render the raw node tree |
+| `--raw-results` | `-r/-R` | off | Print the raw Datalog query results |
+| `--include-refs` | `-i/-I` | **on** | Also fetch nodes referenced via `:block/refs` and their descendants (page-title targets only) |
+
+`--node-props heading,parents` selects which `RoamNode` fields appear in each node panel body.
 
 Examples:
 ```bash
-dump-roam-tree "Test Article" -p 3333 -g SCFH -t your-bearer-token --mode vn
+# Default: vertex tree + refs included
+dump-roam-tree "Test Article" -p 3333 -g SCFH -t your-bearer-token
+
+# Node tree + vertex tree, with custom node props
+dump-roam-tree "Test Article" -p 3333 -g SCFH -t your-bearer-token -n -v --node-props heading,parents
+
+# Raw Datalog results only, no refs
+dump-roam-tree "Test Article" -p 3333 -g SCFH -t your-bearer-token -r -V -I
+
+# Fetch by node UID
 dump-roam-tree wdMgyBiP9 -p 3333 -g SCFH -t your-bearer-token
 ```
 
@@ -279,6 +299,7 @@ See [docs/MDBUNDLE_SETUP.md](docs/MDBUNDLE_SETUP.md) for detailed instructions a
 
 ## Documentation
 
+- [docs/processing_pipeline.md](docs/processing_pipeline.md) — High-level overview of the core data processing pipeline
 - [docs/roam-local-api.md](docs/roam-local-api.md) — Roam Local API reference (JSON over HTTP)
 - [docs/roam-md.md](docs/roam-md.md) — Roam-flavored Markdown vs. CommonMark differences
 - [docs/roam-querying.md](docs/roam-querying.md) — Datalog query language, query structure, and all queries used in this project

@@ -127,6 +127,13 @@ class FetchRoamNodes:
                      (page-ref ?anchor ?node))"""),
             "   ",
         )
+        _REF_DESCENDANT_OR_JOIN_BRANCH: Final[str] = textwrap.indent(
+            textwrap.dedent("""\
+                (and [?anchor :node/title ?title]
+                     (page-ref ?anchor ?ref)
+                     (descendant ?ref ?node))"""),
+            "   ",
+        )
         BY_PAGE_TITLE_QUERY: Final[str] = f"{_BY_PAGE_TITLE_QUERY_BASE})]"
         """Datalog query fetching a page and all its descendant blocks by page title.
 
@@ -150,21 +157,25 @@ class FetchRoamNodes:
         :attr:`BY_PAGE_TITLE_WITH_REFS_QUERY` instead.
         """
 
-        BY_PAGE_TITLE_WITH_REFS_QUERY: Final[str] = f"{_BY_PAGE_TITLE_QUERY_BASE}\n{_PAGE_REF_OR_JOIN_BRANCH})]"
-        """Datalog query fetching a page, all its descendants, and all ``:block/refs`` targets.
+        BY_PAGE_TITLE_WITH_REFS_QUERY: Final[str] = (
+            f"{_BY_PAGE_TITLE_QUERY_BASE}\n{_PAGE_REF_OR_JOIN_BRANCH}\n{_REF_DESCENDANT_OR_JOIN_BRANCH})]"
+        )
+        """Datalog query fetching a page, all its descendants, all ``:block/refs`` targets, and their descendants.
 
         Input bindings: ``?title`` (page title string) and ``%`` (rules vector —
         :attr:`DESCENDANT_AND_PAGE_REF_RULES`).  Must be paired with
         :attr:`DESCENDANT_AND_PAGE_REF_RULES` (not :attr:`DESCENDANT_RULE` alone) because the
         ``page-ref`` rule calls ``(descendant ...)`` internally.
 
-        The ``or-join`` has three branches:
+        The ``or-join`` has four branches:
 
         1. The anchor node itself (``?node = ?anchor``).
         2. Every block reachable from ``?anchor`` through ``:block/children`` at any depth
            (via the ``descendant`` rule).
         3. Every node referenced via ``:block/refs`` from ``?anchor`` directly or from any of
            its descendants (via the ``page-ref`` rule).
+        4. Every block reachable through ``:block/children`` from any node matched by branch 3
+           (i.e. the full descendant subtree of each ref node).
         """
 
         BY_NODE_UID_QUERY: Final[str] = textwrap.dedent("""\
@@ -212,19 +223,18 @@ class FetchRoamNodes:
                 A :class:`~roam_pub.roam_local_api.Request.Payload` with action ``"data.q"``
                 and args set according to *include_refs*.
             """
-            if include_refs:
-                return LocalApiRequest.Payload(
-                    action="data.q",
-                    args=[
-                        FetchRoamNodes.Request.BY_PAGE_TITLE_WITH_REFS_QUERY,
-                        page_title,
-                        FetchRoamNodes.Request.DESCENDANT_AND_PAGE_REF_RULES,
-                    ],
+            query, rules = (
+                (
+                    FetchRoamNodes.Request.BY_PAGE_TITLE_WITH_REFS_QUERY,
+                    FetchRoamNodes.Request.DESCENDANT_AND_PAGE_REF_RULES,
                 )
-            return LocalApiRequest.Payload(
-                action="data.q",
-                args=[FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY, page_title, FetchRoamNodes.Request.DESCENDANT_RULE],
+                if include_refs
+                else (
+                    FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY,
+                    FetchRoamNodes.Request.DESCENDANT_RULE,
+                )
             )
+            return LocalApiRequest.Payload(action="data.q", args=[query, page_title, rules])
 
         @staticmethod
         def payload_by_node_uid(node_uid: Uid) -> LocalApiRequest.Payload:
@@ -429,12 +439,12 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        if anchor.kind is QueryAnchorKind.NODE_UID:
-            return FetchRoamNodes.fetch_by_node_uid(
-                fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs, include_node_tree=include_node_tree),
-                api_endpoint=api_endpoint,
-            )
-        return FetchRoamNodes.fetch_by_page_title(
+        fetch_fn = (
+            FetchRoamNodes.fetch_by_node_uid
+            if anchor.kind is QueryAnchorKind.NODE_UID
+            else FetchRoamNodes.fetch_by_page_title
+        )
+        return fetch_fn(
             fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs, include_node_tree=include_node_tree),
             api_endpoint=api_endpoint,
         )
